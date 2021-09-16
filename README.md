@@ -15,7 +15,7 @@ You must have GemStone/64 version 3.6.2 or later installed and running.
 
 1. Find the Postgres client shared library on your system. The file name is libpq.so and it should be in /usr/lib or /usr/local/lib.
 
-2. Set the enviroment variable POSTGRES_LIB to reference the ***full path*** to the Postgres shared library.
+2. Set the enviroment variable POSTGRES_LIB to reference the ***full path*** to the Postgres shared library (this is only needed during installation. Once initialized, GCfP remembers where this library is located).
 ```
 export POSTGRES_LIB=/usr/lib/libpq.so
 ```
@@ -26,7 +26,7 @@ cd src
 ```
 4. Login to topaz GemStone as SystemUser
 ```
-________________________________________________________________________________
+ ________________________________________________________________________________
 |              GemStone/S64 Object-Oriented Data Management System               |
 |                    Copyright (C) GemTalk Systems 1986-2021                     |
 |                              All rights reserved.                              |
@@ -38,31 +38,36 @@ ________________________________________________________________________________
 |                              Database (2001-2021)                              |
 +--------------------------------------------------------------------------------+
 |    PROGRAM: topaz, Linear GemStone Interface (Linked Session)                  |
-|    VERSION: 3.6.1.1, Mon Jun 28 17:55:54 2021 (branch 3.6.1.1)                 |
-|     COMMIT: 2021-06-28T17:05:42-07:00 c614a8ebfa62650b399493b66c879b1ad2cc4bed |
+|    VERSION: 3.6.2, Mon Jul 19 07:50:57 2021 normg private build (branch 3.6.2) |
+|     COMMIT: 2021-07-12T08:23:33-07:00 5204eb442b124442f8edb39de4d52c77d9f25fb0 |
 |  BUILT FOR: x86-64 (Linux)                                                     |
 | RUNNING ON: 8-CPU moop x86_64 (Linux 4.15.0-147-generic #151-Ubuntu SMP Fri Jun|
 | 18 19:21:19 UTC 2021)                                                          |
 |  PROCESSOR: 4-core Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz (Kaby Lake-DT)     |
 |     MEMORY: 64287 MB                                                           |
-| PROCESS ID: 14343     DATE: 09/16/21 14:36:18 PDT  (UTC -7:00)                 |
+| PROCESS ID: 18819     DATE: 09/16/21 14:54:09 PDT  (UTC -7:00)                 |
 |   USER IDS: REAL=normg (300) EFFECTIVE=normg (300) LOGIN=normg (300)           |
+| BUILD TYPE: SLOW                                                               |
++--------------------------------------------------------------------------------+
+|   GEMSTONE_NRS_ALL = #netldi:ldinormg#dir:/export/moop3/users/normg/gs362_2/slow50/gs/product/data
 |________________________________________________________________________________|
 Warning, executable configuration file not found
-    /moop4/users/normg/fileout/git/gem.conf
+    /export/moop3/users/normg/gs362_2/slow50/gs/product/data/gem.conf
 
-Reading initialization file /moop4/users/normg/gs3.6.1.1.tmp/topaz.ini
+Reading initialization file /home/normg/.topazini
 topaz> login
-[Info]: LNK client/gem GCI levels = 36000/36000
---- 09/16/21 14:36:20.272 PDT Login
+[Info]: LNK client/gem GCI levels = 36200/36200
+ShrPcClientConnect got newClientId 9 newSlot 10
+--- 09/16/21 14:54:10.152 PDT Login
 [Info]: User ID: SystemUser
-[Info]: Repository: normtmp_3.6.1.1
-[Info]: Session ID: 5 login at 09/16/21 14:36:20.274 PDT
+[Info]: Repository: norm
+[Info]: Session ID: 5 login at 09/16/21 14:54:10.155 PDT
 [Info]: GCI Client Host: 
 [Info]: Page server PID: -1
 [Info]: using libicu version 58.2
-[Info]: Gave this process preference for OOM killer: wrote to /proc/14343/oom_score_adj value 250
-[09/16/21 14:36:20.277 PDT]
+[Info]: Loaded /export/moop3/users/normg/gs362_2/slow50/gs/product/lib/libicu.58.2.so
+[Info]: Gave this process preference for OOM killer: wrote to /proc/18819/oom_score_adj value 250
+[09/16/21 14:54:10.157 PDT]
   gci login: currSession 1  linked session 
 successful login
 topaz 1> 
@@ -72,3 +77,43 @@ topaz 1>
 topaz>input install.topaz
 ```
 
+6. If all goes well you should see a zero errorcount:
+```
+true
+topaz 1 +> errorcount
+0
+topaz 1 +> output pop
+topaz 1> 
+```
+7. Quit of quit. You are finished the installation!
+
+## Running the Unit Tests
+
+To run the unit tests, you first need to create a writable Postgres database. Use the createdb Postgres command to create database:
+```
+/usr/local/pgsql/bin/createdb test
+```
+
+Next you need to edit the class method named #defaultParameters in class PostgresTestCase to reference the data you just created:
+```
+category: 'Parameters'
+classmethod: PostgresTestCase
+defaultParameters
+	^(GsPostgresConnectionParameters new)
+		host: 'localhost';
+		port: 5432;
+		dbname: 'test';
+		connect_timeout: 10;
+		yourself
+%
+```
+
+Finally you are ready to run the tests:
+```
+PostgresTestCase run
+```
+or
+```
+PostgresTestCase debugEx
+```
+to debug tests.
