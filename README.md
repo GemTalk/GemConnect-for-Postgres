@@ -7,7 +7,7 @@ Installation instructions assume that you have registered SSH Keys with your Git
 
 You must have git installed: [git setup](https://help.github.com/articles/set-up-git/)
 
-You must have Postgres installed. GCfP was built and tested on Linux using Postgres 11. Other versions of Postgres will probalby work but might not.
+You must have Postgres installed. GCfP was built and tested on Linux using Postgres 11. Other versions of Postgres will probably work but might not.
 
 You must have GemStone/64 version 3.6.2 or later installed and running.
 
@@ -15,7 +15,7 @@ You must have GemStone/64 version 3.6.2 or later installed and running.
 
 1. Find the Postgres client shared library on your system. The file name is libpq.so and it should be in /usr/lib or /usr/local/lib.
 
-2. Set the enviroment variable POSTGRES_LIB to reference the ***full path*** to the Postgres shared library (this is only needed during installation. Once initialized, GCfP remembers where this library is located).
+2. Set the envirnoment variable POSTGRES_LIB to reference the ***full path*** to the Postgres shared library (this is only needed during installation. Once initialized, GCfP remembers where this library is located).
 ```
 export POSTGRES_LIB=/usr/lib/libpq.so
 ```
@@ -86,6 +86,30 @@ topaz 1 +> output pop
 topaz 1> 
 ```
 7. Quit of quit. You are finished the installation!
+
+## Quick Getting Started
+
+### Getting a connection to Posgres
+1. First get an instance of GsPostgresConnectionParameters and intialize it to connect to your Postgres database. For example:
+```
+| params |
+params := (GsPostgresConnectionParameters new)
+		host: 'localhost';
+		port: 5432;
+		dbname: 'MyPostgresDb';
+		connect_timeout: 10;
+		yourself .
+```
+
+2. Now get an instance of GsPostgresConnection using the parameters object from step 1:
+```
+| connection |
+connection := GsPostgresConnection
+				newWithParameters: params.
+```
+
+3. Now you have an active connection to Postgres. You can use it to execute queries on Postgres which return a GsPostgresReadStream
+object, or execute insert, update, or delete operations on rows in Postgres.
 
 ## Running the Unit Tests
 
