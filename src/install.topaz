@@ -1,0 +1,54 @@
+output push GemConnectForPostres.install.log
+display oops
+
+run
+| pgLib blk names userPro dict |
+
+(System _gemVersionNum < 30602)
+  ifTrue:[ Object halt: 'GemStone version 3.6.2 or later is required'].
+  
+"Check we have an env var pointing to the Postgres shared library"
+(pgLib := System gemEnvironmentVariable: 'POSTGRES_LIB')
+  ifNil:[ Object halt: 'Env var POSTGRES_LIB must be set' ].
+(GsFile existsOnServer: pgLib) ifFalse:[
+  Object halt: ('Cannot find file named ', pgLib)
+].  
+
+"Create new SymbolListDictionaries and add to all SymbolLists"
+names := { #GemConnectForPostgres . #GemConnectForPostgres_Tests } .
+blk := [:name :up| | symDict |
+  symDict := (up symbolList objectNamed: name) ifNil:[
+	| symList offset |
+	symList := up symbolList.
+	offset := symList size + 1 .
+	symList createDictionaryNamed: name at: offset .
+	symList objectNamed: name .
+  ].
+
+  AllUsers do:[:u| (u resolveSymbol: name)
+               ifNil:[u insertDictionary: symDict at: (u symbolList size + 1)]].
+].
+userPro := System myUserProfile .
+names do:[:aName| blk value: aName value: userPro ].
+
+"File in GemConnect for Postgres"
+GsFileIn
+  fromServerPath: 'GemConnectForPostgres_classes.gs' ;
+  fromServerPath: 'GemConnectForPostgres_methods.gs'.
+  System commitTransaction.
+
+"File in GemConnect for Postgres SUNIT test cases"
+GsFileIn fromServerPath: 'GemConnectForPostgres_Tests_classes.gs' ;
+	 fromServerPath: 'GemConnectForPostgres_Tests_methods.gs'.
+System commitTransaction.
+
+"Initialize classes. Must resolve by name so this doit compiles."
+dict := (userPro resolveSymbol: #GemConnectForPostgres) value.
+(dict at: #GsLibpq) libraryPath: pgLib .
+(dict at: #GsPostgresConnectionParameters) initialize .
+(dict at: #GsPostgresResult) initialize .
+(dict at: #GsPostgresWriteStream) initialize .
+System commitTransaction.
+%
+errorcount
+output pop
