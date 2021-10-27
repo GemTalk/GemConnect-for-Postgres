@@ -435,7 +435,7 @@ PostgresTestCase sqlForCreateTableNamed: 'table1' columnTypes: { 'character(3)' 
 "
 
 	| ws |
-	ws := WriteStream on: String new.
+	ws := AppendStream on: String new.
 	ws
 		nextPutAll: 'CREATE TABLE ';
 		nextPutAll: aName;
@@ -477,7 +477,7 @@ PostgresTestCase sqlForDeleteFromTable: 'table1' column: 'column1' value: 'abc'
 "
 
 |ws|
-ws := WriteStream on: String new.
+ws := AppendStream on: String new.
 ^ ws nextPutAll: 'DELETE FROM ' ;
 	nextPutAll: aName ;
 	nextPutAll: ' WHERE ';
@@ -511,7 +511,7 @@ PostgresTestCase sqlForInsertValue: 'abc' intoTableNamed: 'table1'
 "
 
 	| ws |
-	ws := WriteStream on: String new.
+	ws := AppendStream on: String new.
 	^ ws
 		nextPutAll: 'INSERT INTO ';
 		nextPutAll: aName;
@@ -528,7 +528,7 @@ PostgresTestCase sqlForInsertValue: 'abc' intoTableNamed: 'table1'
 "
 
 	| ws |
-	ws := WriteStream on: String new.
+	ws := AppendStream on: String new.
 	ws
 		nextPutAll: 'INSERT INTO ';
 		nextPutAll: aName;
@@ -572,7 +572,7 @@ PostgresTestCase sqlForUpdateTable: 'table1' column: 'column1' oldValue: 'abc' n
 "
 
 |ws|
-ws := WriteStream on: String new.
+ws := AppendStream on: String new.
 ^ ws nextPutAll: 'UPDATE ' ;
 	nextPutAll: aName ;
 	nextPutAll: ' SET ';
@@ -1002,7 +1002,7 @@ method: PostgresTestCase
 tableNameExists: aTableName
 
 | ws |
-ws := WriteStream on: String new.
+ws := AppendStream on: String new.
 ws nextPutAll: 'SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE  table_name = ';
 	nextPut: $' ;
 	nextPutAll: aTableName ;

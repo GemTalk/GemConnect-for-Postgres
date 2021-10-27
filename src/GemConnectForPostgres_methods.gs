@@ -15,7 +15,7 @@ byteArrayToPostgresString: aByteArray escaped: isEscaped
 	"Convert a multi-byte string to code point literals understood by Postgres."
 
 	| ws |
-	ws := WriteStream on: String new.
+	ws := AppendStream on: String new.
 	ws
 		nextPutAll: '\x';
 		nextPutAll: aByteArray asHexString .
@@ -63,7 +63,7 @@ U&'\+xxxxxx'
 "
 ^ isEscaped ifTrue:[
 	| ws |
-	ws := WriteStream on: String new.
+	ws := AppendStream on: String new.
 	ws nextPutAll: 'CONCAT('.
 	1 to: aMbString size
 		do:
@@ -143,7 +143,7 @@ U&'\+xxxxxx'
 "
 
 	| ws |
-	ws := WriteStream on: String new.
+	ws := AppendStream on: String new.
 	ws nextPutAll: 'CONCAT('.
 	1 to: aMbString size
 		do:
@@ -197,7 +197,7 @@ U&'\+xxxxxx'
 	^isEscaped
 		ifTrue:
 			[| ws |
-			ws := WriteStream on: String new.
+			ws := AppendStream on: String new.
 			ws nextPutAll: 'CONCAT('.
 			1 to: aMbString size
 				do:
@@ -518,7 +518,7 @@ postgresBinDirectory
 "Derive the bin directory from the library path"
 "GsLibpq postgresBinDirectory"
 
-^((ReadStream on: self libraryPath) upToAll: '/lib/') addAll: '/bin/' ; yourself
+^((ReadStreamPortable on: self libraryPath) upToAll: '/lib/') addAll: '/bin/' ; yourself
 %
 category: 'Read Me'
 classmethod: GsLibpq
@@ -2839,7 +2839,7 @@ createInstanceOf: aClass fromFloatString: aString
 	"This code is needed to make Postgres 'money' type map correctly to ScaledDecimal. The $$ and $, characters need to be removed"
 
 	| rs str |
-	rs := ReadStream on: aString.
+	rs := ReadStreamPortable on: aString.
 	rs skipSeparators.
 	rs peek == $$
 		ifTrue:  "We have a currency "
@@ -2921,7 +2921,7 @@ GsPostgresResult dateAndTimeFromTimestampTz: '2017-08-25 04:50:00-07'
 	| rs year month day hour minute second tzoffset sign negate haveMicro micro |
 	negate := false.
 	tzoffset := 0.
-	rs := ReadStream on: aString.
+	rs := ReadStreamPortable on: aString.
 	year := (rs upTo: $-) asInteger.
 	month := (rs upTo: $-) asInteger.
 	day := (rs upTo: Character space) asInteger.
@@ -2970,7 +2970,7 @@ GsPostgresResult dateTimeFromTimestampDiscardTz: '2017-08-25 04:50:12.222-07'
 
 	| rs year month day hour minute second ms tmp haveMs |
 	haveMs := false.
-	rs := ReadStream on: aString.
+	rs := ReadStreamPortable on: aString.
 	year := (rs upTo: $-) asInteger.
 	month := (rs upTo: $-) asInteger.
 	day := (rs upTo: Character space) asInteger.
@@ -3341,7 +3341,7 @@ timeFromPostgresTimeString: aString
 Note: Postgres times with timezones are not supported and the timezone is discarded."
 
 | rs  secs micro |
-rs := ReadStream on: aString.
+rs := ReadStreamPortable on: aString.
 secs :=(rs upTo: $: ) asInteger * 3600. "hours"
 secs := secs + ((rs upTo: $: ) asInteger * 60). "minutes"
 "Stop at $+ or $- which is the start of the time zone offset, if any. Otherwise read to the end to get the second"
