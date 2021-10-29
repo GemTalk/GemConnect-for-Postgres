@@ -1,19 +1,15 @@
 expectvalue true
 run
-| pgLib dict testDict userGlobalsKeys |
+| pgLib dict |
   
 "Check we have an env var pointing to the Postgres shared library"
 (pgLib := System gemEnvironmentVariable: 'POSTGRES_LIB')
   ifNil:[ Object halt: 'Env var POSTGRES_LIB must be set' ].
-
-userGlobalsKeys := { #GcfpInstallDict . #GcfpTestsInstallDict }.
   
 (UserGlobals at: #InstallInGlobals)
-   ifTrue:[ userGlobalsKeys do:[:key| UserGlobals at: key put: Globals ]]
-  ifFalse:[ | names userPro blk |
+   ifTrue:[ UserGlobals at: #GcfpInstallDict put: Globals ]
+  ifFalse:[ | blk |
     "Create new SymbolListDictionaries and add to all SymbolLists"
-    names := { #GemConnectForPostgres . #GemConnectForPostgres_Tests } .
-  
     blk := [:name :key :up| | symDict |
       symDict := (up symbolList objectNamed: name) ifNil:[
   	| symList offset |
@@ -27,40 +23,25 @@ userGlobalsKeys := { #GcfpInstallDict . #GcfpTestsInstallDict }.
                ifNil:[u insertDictionary: symDict at: (u symbolList size + 1)]].
       UserGlobals at: key put: symDict .	       
     ].
-    userPro := System myUserProfile .
-    1 to: names size do:[:n|
-      blk value: (names at: n)  value: (userGlobalsKeys at: n) value: userPro
-    ].
+    blk value: #GemConnectForPostgres value: #GcfpInstallDict value: System myUserProfile .
 ].
 
-"These keys should now be present"
+"This key should now be present"
 dict := UserGlobals at: #GcfpInstallDict.
-testDict := UserGlobals at: #GcfpTestsInstallDict.
 
 "File in GemConnect for Postgres"
 GsFileIn
   fromServerPath: 'GemConnectForPostgres_classes.gs' ;
   fromServerPath: 'GemConnectForPostgres_methods.gs'.
-  System commitTransaction.
-
-"File in GemConnect for Postgres SUNIT test cases"
-GsFileIn fromServerPath: 'GemConnectForPostgres_Tests_classes.gs' ;
-	 fromServerPath: 'GemConnectForPostgres_Tests_methods.gs'.
-System commitTransaction.
 
 "Initialize classes. Must resolve by name so this doit compiles."
 (dict at: #GsLibpq) libraryPath: pgLib .
 (dict at: #GsPostgresConnectionParameters) initialize .
 (dict at: #GsPostgresResult) initialize .
 (dict at: #GsPostgresWriteStream) initialize .
-System commitTransaction.
-%
 
-! Cleanup our mess.
-expectvalue true
-run
+"Clean up"
 UserGlobals removeKey: #GcfpInstallDict ;
-	    removeKey: #GcfpTestsInstallDict; 
 	    removeKey: #InstallInGlobals.
 System commitTransaction.
 %

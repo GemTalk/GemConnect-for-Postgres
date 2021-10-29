@@ -2,13 +2,9 @@ output push GemConnectForPostres.install.log
 display oops
 
 input dochecks.topaz
-
-run
-UserGlobals at: #InstallInGlobals put: false
-%
-commit
-
+errorcount
+send UserGlobals at: #InstallInGlobals put: false
+errorcount
 input private.topaz
-
 errorcount
 output pop

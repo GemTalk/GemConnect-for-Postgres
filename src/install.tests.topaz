@@ -1,0 +1,20 @@
+output push GemConnectForPostres.tests.install.log
+display oops
+expectvalue true
+run
+| pgLib dict testDict userGlobalsKeys |
+
+dict := System myUserProfile symbolList
+  detect:[:d| d includesKey: #GsPostgresResult]
+    ifNone:[ Object halt: 'Cannot find class GsPostgresResult. Is GemConnectForPostgres installed?'].
+UserGlobals at: #GcfpTestsInstallDict put: dict.
+   
+"File in GemConnect for Postgres SUNIT test cases"
+GsFileIn fromServerPath: 'GemConnectForPostgres_Tests_classes.gs' ;
+	 fromServerPath: 'GemConnectForPostgres_Tests_methods.gs'.
+UserGlobals removeKey: #GcfpTestsInstallDict.
+System commitTransaction.
+%
+
+errorcount
+output pop
