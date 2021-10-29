@@ -3,10 +3,11 @@ display oops
 
 input dochecks.topaz
 
+expectvalue true
 run
-UserGlobals at: #InstallInGlobals put: false
+UserGlobals at: #InstallInGlobals put: true .
+System commitTransaction.
 %
-commit
 
 input private.topaz
 

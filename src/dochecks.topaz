@@ -1,0 +1,15 @@
+expectvalue true
+run
+| pgLib installInGlobals |
+
+(System _gemVersionNum < 30602)
+  ifTrue:[ Object halt: 'GemStone version 3.6.2 or later is required'].
+  
+"Check we have an env var pointing to the Postgres shared library"
+(pgLib := System gemEnvironmentVariable: 'POSTGRES_LIB')
+  ifNil:[ Object halt: 'Env var POSTGRES_LIB must be set' ].
+(GsFile existsOnServer: pgLib) ifFalse:[
+  Object halt: ('Cannot find file named ', pgLib)
+].
+true
+%

@@ -11,7 +11,7 @@ Object subclass: 'WidgetWithStrings'
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()
-  inDictionary: GemConnectForPostgres_Tests
+  inDictionary: (UserGlobals at: #GcfpTestsInstallDict)
   options: #()
 
 %
@@ -24,7 +24,7 @@ WidgetWithStrings subclass: 'WidgetWithUnicode'
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()
-  inDictionary: GemConnectForPostgres_Tests
+  inDictionary: (UserGlobals at: #GcfpTestsInstallDict)
   options: #()
 
 %
@@ -37,7 +37,7 @@ GsTestCase subclass: 'PostgresTestCase'
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()
-  inDictionary: GemConnectForPostgres_Tests
+  inDictionary: (UserGlobals at: #GcfpTestsInstallDict)
   options: #()
 
 %

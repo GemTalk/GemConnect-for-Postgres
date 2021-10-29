@@ -10,7 +10,7 @@ Object subclass: 'GsPostgresWriteStream'
   classVars: #( ClassToPostgresStringTable)
   classInstVars: #()
   poolDictionaries: #()
-  inDictionary: GemConnectForPostgres
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
   options: #()
 
 %
@@ -62,7 +62,7 @@ Object subclass: 'GsLibpq'
   classVars: #( libraryPath)
   classInstVars: #()
   poolDictionaries: #()
-  inDictionary: GemConnectForPostgres
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
   options: #()
 
 %
@@ -93,7 +93,7 @@ Object subclass: 'GsPostgresConnection'
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()
-  inDictionary: GemConnectForPostgres
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
   options: #()
 
 %
@@ -121,7 +121,7 @@ Object subclass: 'GsPostgresConnectionParameters'
   classVars: #( AllLegalParameters)
   classInstVars: #()
   poolDictionaries: #()
-  inDictionary: GemConnectForPostgres
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
   options: #()
 
 %
@@ -149,7 +149,7 @@ Object subclass: 'GsPostgresReadStream'
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()
-  inDictionary: GemConnectForPostgres
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
   options: #()
 
 %
@@ -180,7 +180,7 @@ Object subclass: 'GsPostgresColumnMapEntry'
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()
-  inDictionary: GemConnectForPostgres
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
   options: #()
 
 %
@@ -208,7 +208,7 @@ Object subclass: 'GsPostgresResult'
   classVars: #( ClassAndSelctorTable ExecStatusTable FieldTypeTable)
   classInstVars: #()
   poolDictionaries: #()
-  inDictionary: GemConnectForPostgres
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
   options: #( dbTransient)
 
 %
