@@ -72,9 +72,26 @@ ShrPcClientConnect got newClientId 9 newSlot 10
 successful login
 topaz 1> 
 ```
-5. Input the install script install.topaz. A log file named GemConnectForPostres.install.log will be created.
+5. Complete **either** step A **or** B, not both. Step C is optional.
+
+- A) Installing code into a new SymbolListDictionary:   
+To create and install in a new Symbol Dictionary named GemConnectForPostgres, input the install script install.topaz. 
+A log file named GemConnectForPostres.install.log will be created.
 ```
-topaz>input install.topaz
+  topaz>input install.topaz
+```
+
+- B) To install code into Globals:  
+  Input the install script install.into.globals.topaz. A log file named GemConnectForPostres.install.log will be created.
+```
+  topaz>input install.into.globals.topaz
+```
+
+- C) (Optional) To install the unit tests:  
+  Input the install script install.tests.topaz. A log file named GemConnectForPostres.install.tests.log will be created.
+  Unit test classes will be installed in the same SymbolListDictionary as GemConnectForPostgres.
+```
+  topaz>input install.tests.topaz
 ```
 
 6. If all goes well you should see a zero errorcount:
@@ -85,7 +102,7 @@ topaz 1 +> errorcount
 topaz 1 +> output pop
 topaz 1> 
 ```
-7. Quit of quit. You are finished the installation!
+7. Quit out of topaz. You are finished the installation!
 
 ## Quick Getting Started
 
@@ -113,7 +130,7 @@ object, or execute insert, update, or delete operations on rows in Postgres.
 
 ## Running the Unit Tests
 
-To run the unit tests, you first need to create a writable Postgres database. Use the createdb Postgres command to create database:
+To run the unit tests, you first need to install the unit tests (see step 5-C above) and create a writable Postgres database. Use the createdb Postgres command to create database:
 ```
 /usr/local/pgsql/bin/createdb test
 ```
