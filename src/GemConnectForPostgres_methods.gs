@@ -1330,7 +1330,7 @@ If aBoolean is true, multibyte strings from Postgres are translated to Unicode16
 If aBoolean is false, multibyte strings from Postgres are translated to DoubleByteString and QuadByteString objects.
 The connection is created in a disconnected state."
 
-^ super new libpq: GsLibpq new ; parameters: aGsPostgresConnectionParameters ; unicodeStrings: aBoolean ; yourself
+^ self basicNew libpq: GsLibpq new ; pgParameters: aGsPostgresConnectionParameters ; unicodeStrings: aBoolean ; yourself
 %
 category: 'Error Handling'
 classmethod: GsPostgresConnection
@@ -1507,7 +1507,7 @@ connect
 "Establishes a connection with Postgres. Returns true on success or raises an exception on error."
 
 self connected ifTrue:[ ^ true ] .
-pqConnCptr := libpq basicLoginWithString:  self parameters asLoginString .
+pqConnCptr := libpq basicLoginWithString:  self pgParameters asLoginString .
 ^ (self connected)
 	ifTrue:[ self class addConnection: self. true ]
 	ifFalse:[ | msg |
@@ -1834,13 +1834,13 @@ openUpdateCursorOn: tupleClass columnMapping: columnMap keyMapping: keyMap table
 %
 category: 'Accessing'
 method: GsPostgresConnection
-parameters
-	^parameters
+pgParameters
+	^pgParameters
 %
 category: 'Updating'
 method: GsPostgresConnection
-parameters: newValue
-	parameters := newValue
+pgParameters: newValue
+	pgParameters := newValue
 %
 category: 'Accessing'
 method: GsPostgresConnection

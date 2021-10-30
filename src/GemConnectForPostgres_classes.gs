@@ -87,8 +87,8 @@ set compile_env: 0
 ! ------------------- Class definition for GsPostgresConnection
 expectvalue /Class
 doit
-Object subclass: 'GsPostgresConnection'
-  instVarNames: #( libpq pqConnCptr parameters
+(UserGlobals at: #GcfpPgConnSuperClass) subclass: 'GsPostgresConnection'
+  instVarNames: #( libpq pqConnCptr pgParameters
                     unicodeStrings)
   classVars: #()
   classInstVars: #()
@@ -105,7 +105,7 @@ GsPostgresConnection comment:
 Instance Variables:
 	libpq (GsLibpq) - an instance of GsLibpq. Contains information about the Postgres shared library connect.
 	pqConnCptr (CPointer) - Pointer to the C state of the Postgres connection (PGconn *)
-	parameters (GsPostgresConnectionParameters) - parameters object for this connection
+	pgParameters (GsPostgresConnectionParameters) - parameters object for this connection
 	unicodeStrings - (Boolean) specifies the default classes used to translate multibyte strings from Postgres into objects.
 		true means return Unicode classses (Unicode16, Unicode32).
 		false means return DoubleByteString and QuadByteString objects.

@@ -1,6 +1,6 @@
 expectvalue true
 run
-| pgLib dict |
+| pgLib dict gsrdbconn |
   
 "Check we have an env var pointing to the Postgres shared library"
 (pgLib := System gemEnvironmentVariable: 'POSTGRES_LIB')
@@ -28,6 +28,14 @@ run
 
 "This key should now be present"
 dict := UserGlobals at: #GcfpInstallDict.
+
+"Subclass GsPostgresConnection from GsRdbConnection if present, otherwise
+ subclass from Object."
+gsrdbconn := System myUserProfile resolveSymbol: #GsRdbConnection.
+gsrdbconn := gsrdbconn
+   ifNil:[ Object ]
+   ifNotNil:[ gsrdbconn value ].
+UserGlobals at: #GcfpPgConnSuperClass put: gsrdbconn .
 
 "File in GemConnect for Postgres"
 GsFileIn
