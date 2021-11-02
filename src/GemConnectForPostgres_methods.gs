@@ -1324,6 +1324,22 @@ idx := self sessionStateIndex . " 25 "
 	ifNil:[  sys __sessionStateAt: idx put: (result := self newSessionStateArray) ].
 ^ result
 %
+category: 'Datatype Conversion'
+classmethod: GsPostgresConnection
+getRdbDateFor: aDate
+
+"Returns a string representing the given Date as a valid Postgres date"
+
+^ GsPostgresWriteStream dateToPostgresString: aDate  escaped: false
+%
+category: 'Datatype Conversion'
+classmethod: GsPostgresConnection
+getRdbDateTimeFor: aDateTime
+
+"Returns a string representing the given DateTime as a valid Postgres timestamp"
+
+^ GsPostgresWriteStream dateTimeToPostgresString: aDateTime escaped: false
+%
 category: 'Error Handling'
 classmethod: GsPostgresConnection
 hasPostgresError
