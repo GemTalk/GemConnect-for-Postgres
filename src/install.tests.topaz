@@ -7,12 +7,12 @@ run
 dict := System myUserProfile symbolList
   detect:[:d| d includesKey: #GsPostgresResult]
     ifNone:[ Object halt: 'Cannot find class GsPostgresResult. Is GemConnectForPostgres installed?'].
-UserGlobals at: #GcfpTestsInstallDict put: dict.
+UserGlobals at: #GcfpInstallDict put: dict.
    
 "File in GemConnect for Postgres SUNIT test cases"
 GsFileIn fromServerPath: 'GemConnectForPostgres_Tests_classes.gs' ;
 	 fromServerPath: 'GemConnectForPostgres_Tests_methods.gs'.
-UserGlobals removeKey: #GcfpTestsInstallDict.
+UserGlobals removeKey: #GcfpInstallDict.
 System commitTransaction.
 %
 
