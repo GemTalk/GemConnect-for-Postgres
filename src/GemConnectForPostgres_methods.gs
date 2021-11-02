@@ -1500,6 +1500,14 @@ commit
 
 self executeNoResults: 'COMMIT'
 %
+category: 'Transaction Control'
+method: GsPostgresConnection
+commitTransaction
+
+"Executes COMMIT on Postgres"
+
+self commit
+%
 category: 'Connection Management'
 method: GsPostgresConnection
 connect
@@ -1941,6 +1949,14 @@ rollback
 "Executes ROLLBACK on Postgres"
 
 self executeNoResults: 'ROLLBACK'
+%
+category: 'Transaction Control'
+method: GsPostgresConnection
+rollbackTransaction
+
+"Executes ROLLBACK on Postgres"
+
+self rollback
 %
 category: 'Character Encoding'
 method: GsPostgresConnection
