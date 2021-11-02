@@ -334,7 +334,7 @@ flushInOneTransaction
 
 self conn begin.
 self flush .
-self conn commit.
+self conn commitTransaction.
 ^ self
 %
 category: 'Freeing'
@@ -1584,21 +1584,13 @@ characterEncoding
 %
 category: 'Transaction Control'
 method: GsPostgresConnection
-commit
-
-"Executes COMMIT on Postgres"
-
-self class flushAllStreams .
-self executeNoResults: 'COMMIT' .
-^ self
-%
-category: 'Transaction Control'
-method: GsPostgresConnection
 commitTransaction
 
-"Executes COMMIT on Postgres"
+"Executes COMMIT WORK on Postgres"
 
-^ self commit
+self class flushAllStreams .
+self executeNoResults: 'COMMIT WORK' .
+^ self
 %
 category: 'Connection Management'
 method: GsPostgresConnection
@@ -1643,7 +1635,7 @@ end
 
 "Executes COMMIT on Postgres"
 
-^ self commit
+^ self commitTransaction
 %
 category: 'Command Execution'
 method: GsPostgresConnection

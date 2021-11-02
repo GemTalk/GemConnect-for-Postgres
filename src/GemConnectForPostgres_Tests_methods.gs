@@ -1429,7 +1429,7 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		assert: ws position identical: 0;
 		assert: (ws nextPutAll: objs) identical: ws;
 		assert: ws hasUnflushedData ;
-		assert: self connection commit identical: self connection ;
+		assert: self connection commitTransaction identical: self connection ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
 		deny: (GsPostgresConnection hasWriteStream: ws) .
@@ -1454,7 +1454,7 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		deny: ws hasUnflushedData ;
 		assert: (ws nextPutAll: objs) identical: ws;
 		assert: ws hasUnflushedData ;
-		assert: self connection commit identical: self connection ;
+		assert: self connection commitTransaction identical: self connection ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
 		deny: (GsPostgresConnection hasWriteStream: ws) .
@@ -1478,7 +1478,7 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		deny: ws hasUnflushedData ;
 		assert: (ws nextPutAll: objs) identical: ws;
 		assert: ws hasUnflushedData ;
-		assert: self connection commit identical: self connection ;
+		assert: self connection commitTransaction identical: self connection ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
 		deny: (GsPostgresConnection hasWriteStream: ws) .
