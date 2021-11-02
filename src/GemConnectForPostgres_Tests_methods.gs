@@ -1404,6 +1404,22 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 	self
 		assert: objs size identical: 100;
 		assert: objs first class == aTupleClass.
+
+"Add to write stream then rollback"
+	self
+		assert: (ws := self connection openInsertCursorOn: aTupleClass) class
+			equals: GsPostgresWriteStream;
+		assert: ws isExternal;
+		assert: (GsPostgresConnection hasWriteStream: ws);
+		deny: ws hasUnflushedData ;
+		assert: ws position identical: 0;
+		assert: (ws nextPutAll: objs) identical: ws;
+		assert: ws hasUnflushedData ;
+		assert: self connection rollback identical: self connection ;
+		deny: ws hasUnflushedData ;
+		assert: ws free identical: ws ;
+		deny: (GsPostgresConnection hasWriteStream: ws) .
+
 	self
 		assert: (ws := self connection openInsertCursorOn: aTupleClass) class
 			equals: GsPostgresWriteStream;
