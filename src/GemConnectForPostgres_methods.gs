@@ -248,6 +248,15 @@ zeroPadLeft: aString toDigits: anInt
 	^result
 %
 ! ------------------- Instance methods for GsPostgresWriteStream
+category: 'Stream Operations'
+method: GsPostgresWriteStream
+clear
+
+"Clears the contents of the receiver and makes it empty."
+
+	collection size: 0 .
+	position := 0.
+%
 category: 'Accessing'
 method: GsPostgresWriteStream
 collection
@@ -328,6 +337,19 @@ self flush .
 self conn commit.
 ^ self
 %
+category: 'Freeing'
+method: GsPostgresWriteStream
+free
+
+GsPostgresConnection removeWriteStream: self.
+^ self
+%
+category: 'Testing'
+method: GsPostgresWriteStream
+hasUnflushedData
+
+^ position < collection size
+%
 category: 'Initialize'
 method: GsPostgresWriteStream
 initialize
@@ -340,6 +362,7 @@ method: GsPostgresWriteStream
 initializeWithConnection: aConn
 	"initialize method must already be called before we get here!"
 
+	GsPostgresConnection addWriteStream: self.
 	self
 		conn: aConn;
 		libpq: aConn libpq
@@ -1049,6 +1072,14 @@ addConnection: aGsPostgresConnection
 
 self _allPostgresConnections add: aGsPostgresConnection
 %
+category: 'Private'
+classmethod: GsPostgresConnection
+addWriteStream: aGsPostgresWriteStream
+
+"Private. Do not call directly unless you know what you're doing."
+
+self _allPostgresWriteStreams add: aGsPostgresWriteStream
+%
 category: 'Connection Management'
 classmethod: GsPostgresConnection
 allPostgresConnections
@@ -1056,6 +1087,14 @@ allPostgresConnections
 "Answer an Array of *connected* GsPostgresConnection objects."
 
 ^ self _allPostgresConnections asArray
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+clearAllStreams
+
+"Private. Do not call directly unless you know what you're doing."
+
+self _allPostgresWriteStreams do:[:e| e clear ]
 %
 category: 'Connection Management'
 classmethod: GsPostgresConnection
@@ -1080,6 +1119,14 @@ errorNumber
 "Answer the GemStone error number used to raise Postgres errors."
 
 	^self hasPostgresError ifTrue: [2761 "PostgresError" ] ifFalse: [2713 "ExternalError" ]
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+flushAllStreams
+
+"Private. Do not call directly unless you know what you're doing."
+
+self _allPostgresWriteStreams do:[:e| e flush ]
 %
 category: 'SQL Generation'
 classmethod: GsPostgresConnection
@@ -1285,6 +1332,14 @@ hasPostgresError
 
 ^Globals includesKey: #PostgresError
 %
+category: 'Private'
+classmethod: GsPostgresConnection
+hasWriteStream: aGsPostgresWriteStream
+
+"Private. Do not call directly unless you know what you're doing."
+
+^ self _allPostgresWriteStreams includesIdentical: aGsPostgresWriteStream
+%
 category: 'Instance Creation'
 classmethod: GsPostgresConnection
 new
@@ -1306,12 +1361,14 @@ Format of Array stored at session state index 25:
 	1 - AllPostgresConnections (connected connections only) (IdentitySet)
 	2 - NamedConnectionsDictionary (KeyValueDictionary, name -> connection)
 	3 - NamedConnectionsReverseDictionary (IdentityKeyValueDictionary, connection -> Array of names)
+	4 - AllWriteStreams (IdentitySet)
 "
 
 	^Array
 		with: IdentitySet new
 		with: KeyValueDictionary new
 		with: IdentityKeyValueDictionary new
+		with: IdentitySet new
 %
 category: 'Instance Creation'
 classmethod: GsPostgresConnection
@@ -1356,6 +1413,14 @@ removeFromCacheKey: aName
 inst := self _namedConnectionDictionary removeKey: aName otherwise: nil.
 inst ifNotNil:[ (self _namedConnectionReverseDictionary at: inst)  removeIfPresent: aName ].
 %
+category: 'Private'
+classmethod: GsPostgresConnection
+removeWriteStream: aGsPostgresWriteStream
+
+"Private. Do not call directly unless you know what you're doing."
+
+self _allPostgresWriteStreams removeIfPresent: aGsPostgresWriteStream
+%
 category: 'Constants'
 classmethod: GsPostgresConnection
 sessionStateIndex
@@ -1373,6 +1438,14 @@ _allPostgresConnections
 "Private. Do not call directly unless you know what you're doing."
 
 ^ self getPostgresSessionState at: 1
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+_allPostgresWriteStreams
+
+"Private. Do not call directly unless you know what you're doing."
+
+^ self getPostgresSessionState at: 4
 %
 category: 'Private'
 classmethod: GsPostgresConnection
@@ -1412,7 +1485,7 @@ abort
 
 "Executes ROLLBACK on Postgres"
 
-self rollback
+^ self rollback
 %
 category: 'Private'
 method: GsPostgresConnection
@@ -1463,9 +1536,10 @@ category: 'Transaction Control'
 method: GsPostgresConnection
 begin
 
-"Executes BEGINon Postgres"
+"Executes BEGIN on Postgres"
 
-self executeNoResults: 'BEGIN'
+self executeNoResults: 'BEGIN' .
+^ self
 %
 category: 'Transaction Control'
 method: GsPostgresConnection
@@ -1473,7 +1547,7 @@ beginTransaction
 
 "Executes BEGIN on Postgres"
 
-self begin
+^ self begin
 %
 category: 'Connection Management'
 method: GsPostgresConnection
@@ -1498,7 +1572,9 @@ commit
 
 "Executes COMMIT on Postgres"
 
-self executeNoResults: 'COMMIT'
+self class flushAllStreams .
+self executeNoResults: 'COMMIT' .
+^ self
 %
 category: 'Transaction Control'
 method: GsPostgresConnection
@@ -1506,7 +1582,7 @@ commitTransaction
 
 "Executes COMMIT on Postgres"
 
-self commit
+^ self commit
 %
 category: 'Connection Management'
 method: GsPostgresConnection
@@ -1551,7 +1627,7 @@ end
 
 "Executes COMMIT on Postgres"
 
-self commit
+^ self commit
 %
 category: 'Command Execution'
 method: GsPostgresConnection
@@ -1948,7 +2024,9 @@ rollback
 
 "Executes ROLLBACK on Postgres"
 
-self executeNoResults: 'ROLLBACK'
+self class clearAllStreams .
+self executeNoResults: 'ROLLBACK' .
+^ self
 %
 category: 'Transaction Control'
 method: GsPostgresConnection
@@ -1956,7 +2034,7 @@ rollbackTransaction
 
 "Executes ROLLBACK on Postgres"
 
-self rollback
+^ self rollback
 %
 category: 'Character Encoding'
 method: GsPostgresConnection

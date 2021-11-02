@@ -1408,9 +1408,16 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		assert: (ws := self connection openInsertCursorOn: aTupleClass) class
 			equals: GsPostgresWriteStream;
 		assert: ws isExternal;
+		assert: (GsPostgresConnection hasWriteStream: ws);
+		deny: ws hasUnflushedData ;
 		assert: ws position identical: 0;
 		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws flushInOneTransaction identical: ws.
+		assert: ws hasUnflushedData ;
+		assert: self connection commit identical: self connection ;
+		deny: ws hasUnflushedData ;
+		assert: ws free identical: ws ;
+		deny: (GsPostgresConnection hasWriteStream: ws) .
+		
 
 	[| a b |
 	self
@@ -1427,8 +1434,14 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 	self
 		assert: (ws := self connection openUpdateCursorOn: aTupleClass) class
 			equals: GsPostgresWriteStream;
+		assert: (GsPostgresConnection hasWriteStream: ws);
+		deny: ws hasUnflushedData ;
 		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws flush identical: ws.
+		assert: ws hasUnflushedData ;
+		assert: self connection commit identical: self connection ;
+		deny: ws hasUnflushedData ;
+		assert: ws free identical: ws ;
+		deny: (GsPostgresConnection hasWriteStream: ws) .
 
 	[self
 		assert: (rs := self connection
@@ -1445,8 +1458,14 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 	self
 		assert: (ws := self connection openDeleteCursorOn: aTupleClass) class
 			equals: GsPostgresWriteStream;
+		assert: (GsPostgresConnection hasWriteStream: ws);
+		deny: ws hasUnflushedData ;
 		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws flush identical: ws.
+		assert: ws hasUnflushedData ;
+		assert: self connection commit identical: self connection ;
+		deny: ws hasUnflushedData ;
+		assert: ws free identical: ws ;
+		deny: (GsPostgresConnection hasWriteStream: ws) .
 
 	[self
 		assert: (rs := self connection
