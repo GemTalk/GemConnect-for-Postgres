@@ -33,6 +33,17 @@ dateTimeToPostgresString: aDateTime escaped: isEscaped
 	"GsPostgresWriteStream dateTimeToPostgresString: DateTime now  escaped: false"
 	"^ (aDateTime asStringUsingFormat: #(3 2 1 $- 1 1 $: true true false true true)) quoted"
 
+	^self
+		dateTimeToPostgresString: aDateTime
+		escaped: isEscaped
+		withTimezone: true
+%
+category: 'Converting'
+classmethod: GsPostgresWriteStream
+dateTimeToPostgresString: aDateTime escaped: isEscaped withTimezone: includeTz
+	"GsPostgresWriteStream dateTimeToPostgresString: DateTime now  escaped: false"
+	"^ (aDateTime asStringUsingFormat: #(3 2 1 $- 1 1 $: true true false true true)) quoted"
+
 	| localDt aString aTimeZone |
 	aTimeZone := aDateTime timeZone.
 	localDt := aDateTime addSeconds: (aDateTime _localOffset: aTimeZone).
@@ -40,11 +51,14 @@ dateTimeToPostgresString: aDateTime escaped: isEscaped
 				asStringStdUsingFormat: #(3 2 1 $- 1 1 $: true true false true true).
 	aString
 		add: $.;
-		addAll: (self zeroPadLeft: (aDateTime millisecondsGmt \\ 1000) asString toDigits: 3)   ;
-		add: Character space.
-	(aDateTime isDstIn: aTimeZone)
-		ifTrue: [aString addAll: aTimeZone dstPrintString]
-		ifFalse: [aString addAll: aTimeZone standardPrintString].
+		addAll: (self zeroPadLeft: (aDateTime millisecondsGmt \\ 1000) asString
+					toDigits: 3).
+	includeTz
+		ifTrue: 
+			[aString add: Character space.
+			(aDateTime isDstIn: aTimeZone)
+				ifTrue: [aString addAll: aTimeZone dstPrintString]
+				ifFalse: [aString addAll: aTimeZone standardPrintString]].
 	^aString quoted
 %
 category: 'Converting'
@@ -341,7 +355,15 @@ category: 'Freeing'
 method: GsPostgresWriteStream
 free
 
-GsPostgresConnection removeWriteStream: self.
+GsPostgresConnection removeWriteStream: self forConnection: conn .
+^ self freeMemory
+%
+category: 'Freeing'
+method: GsPostgresWriteStream
+freeMemory
+
+"No memory to free"
+
 ^ self
 %
 category: 'Testing'
@@ -362,7 +384,7 @@ method: GsPostgresWriteStream
 initializeWithConnection: aConn
 	"initialize method must already be called before we get here!"
 
-	GsPostgresConnection addWriteStream: self.
+	GsPostgresConnection addWriteStream: self forConnection: aConn .
 	self
 		conn: aConn;
 		libpq: aConn libpq
@@ -1070,15 +1092,32 @@ addConnection: aGsPostgresConnection
 
 "Private. Do not call directly unless you know what you're doing."
 
-self _allPostgresConnections add: aGsPostgresConnection
+self _allPostgresConnections add: aGsPostgresConnection.
+self _streamsForConnectionDictionary at: aGsPostgresConnection put: (Array with: IdentitySet new with: IdentitySet new).
 %
 category: 'Private'
 classmethod: GsPostgresConnection
-addWriteStream: aGsPostgresWriteStream
+addReadStream: rs forConnection: conn
 
 "Private. Do not call directly unless you know what you're doing."
 
-self _allPostgresWriteStreams add: aGsPostgresWriteStream
+((self _streamsForConnectionDictionary at: conn)  at: 1) add: rs
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+addWriteStream: ws forConnection: conn
+
+"Private. Do not call directly unless you know what you're doing."
+
+((self _streamsForConnectionDictionary at: conn)  at: 2) add: ws
+%
+category: 'Connection Management'
+classmethod: GsPostgresConnection
+allNamesForConnection: aGsPostgresConnection 
+
+"Answer an Array of strings which are all names associated with aGsPostgresConnection ."
+
+^ self _namedConnectionReverseDictionary at: aGsPostgresConnection otherwise: { }
 %
 category: 'Connection Management'
 classmethod: GsPostgresConnection
@@ -1090,11 +1129,28 @@ allPostgresConnections
 %
 category: 'Private'
 classmethod: GsPostgresConnection
-clearAllStreams
+allReadStreamsForConnection: conn
 
 "Private. Do not call directly unless you know what you're doing."
+| list |
+(list := self _streamsForConnectionDictionary at: conn otherwise: nil) ifNil:[ ^ { } ].
+^list at: 1
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+allWriteStreamsForConnection: conn
 
-self _allPostgresWriteStreams do:[:e| e clear ]
+"Private. Do not call directly unless you know what you're doing."
+| list |
+(list := self _streamsForConnectionDictionary at: conn otherwise: nil) ifNil:[ ^ { } ].
+^list at: 2
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+clearAllWriteStreamsForConnection: conn
+
+
+(self allWriteStreamsForConnection: conn) do:[:each| each clear ].
 %
 category: 'Connection Management'
 classmethod: GsPostgresConnection
@@ -1122,11 +1178,25 @@ errorNumber
 %
 category: 'Private'
 classmethod: GsPostgresConnection
-flushAllStreams
+flushAllWriteStreamsForConnection: conn
 
-"Private. Do not call directly unless you know what you're doing."
 
-self _allPostgresWriteStreams do:[:e| e flush ]
+(self allWriteStreamsForConnection: conn) do:[:each| each flush ].
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+freeAllReadStreamsForConnection: conn
+
+"Do not remove from the collection here. #disconnect method does that later."
+(self allReadStreamsForConnection: conn) do:[:each| each freeMemory ].
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+freeAllWriteStreamsForConnection: conn
+
+"Do not remove from the collection here. #disconnect method does that later."
+
+(self allWriteStreamsForConnection: conn) do:[:each| each freeMemory ].
 %
 category: 'SQL Generation'
 classmethod: GsPostgresConnection
@@ -1336,9 +1406,11 @@ category: 'Datatype Conversion'
 classmethod: GsPostgresConnection
 getRdbDateTimeFor: aDateTime
 
-"Returns a string representing the given DateTime as a valid Postgres timestamp"
+"Returns a string representing the given DateTime as a valid Postgres timestamp without the timezone"
 
-^ GsPostgresWriteStream dateTimeToPostgresString: aDateTime escaped: false
+"GsPostgresConnection getRdbDateTimeFor: DateTime now"
+
+^ GsPostgresWriteStream dateTimeToPostgresString: aDateTime escaped: false withTimezone: false
 %
 category: 'Error Handling'
 classmethod: GsPostgresConnection
@@ -1350,11 +1422,19 @@ hasPostgresError
 %
 category: 'Private'
 classmethod: GsPostgresConnection
-hasWriteStream: aGsPostgresWriteStream
+hasReadStream: rs forConnection: conn
 
 "Private. Do not call directly unless you know what you're doing."
 
-^ self _allPostgresWriteStreams includesIdentical: aGsPostgresWriteStream
+^ ((self _streamsForConnectionDictionary at: conn)  at: 1) includesIdentical: rs
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+hasWriteStream: ws forConnection: conn
+
+"Private. Do not call directly unless you know what you're doing."
+
+^ ((self _streamsForConnectionDictionary at: conn)  at: 2) includesIdentical: ws
 %
 category: 'Instance Creation'
 classmethod: GsPostgresConnection
@@ -1377,14 +1457,15 @@ Format of Array stored at session state index 25:
 	1 - AllPostgresConnections (connected connections only) (IdentitySet)
 	2 - NamedConnectionsDictionary (KeyValueDictionary, name -> connection)
 	3 - NamedConnectionsReverseDictionary (IdentityKeyValueDictionary, connection -> Array of names)
-	4 - AllWriteStreams (IdentitySet)
+	4 - StreamsForConnectionDictionary (IdentityKeyValueDictionary, connection -> Array[2]: { ReadStreams .  WriteStreams }
+		
 "
 
 	^Array
 		with: IdentitySet new
 		with: KeyValueDictionary new
 		with: IdentityKeyValueDictionary new
-		with: IdentitySet new
+		with: IdentityKeyValueDictionary new
 %
 category: 'Instance Creation'
 classmethod: GsPostgresConnection
@@ -1418,7 +1499,12 @@ classmethod: GsPostgresConnection
 removeConnection: aGsPostgresConnection
 
 "Private. Do not call directly unless you know what you're doing."
-self _allPostgresConnections removeIfPresent: aGsPostgresConnection
+self _allPostgresConnections removeIfPresent: aGsPostgresConnection . "Remove from IdentitySet"
+(self allNamesForConnection: aGsPostgresConnection)  "Remove each name for this connection"
+	do:[:name| self _namedConnectionDictionary removeKey: name otherwise: nil ].
+"Remove entry from reverse dictionary, if any"
+self _namedConnectionReverseDictionary removeKey: aGsPostgresConnection otherwise: nil.
+self _streamsForConnectionDictionary removeKey: aGsPostgresConnection .
 %
 category: 'Private'
 classmethod: GsPostgresConnection
@@ -1431,11 +1517,19 @@ inst ifNotNil:[ (self _namedConnectionReverseDictionary at: inst)  removeIfPrese
 %
 category: 'Private'
 classmethod: GsPostgresConnection
-removeWriteStream: aGsPostgresWriteStream
+removeReadStream: rs forConnection: conn
 
 "Private. Do not call directly unless you know what you're doing."
 
-self _allPostgresWriteStreams removeIfPresent: aGsPostgresWriteStream
+((self _streamsForConnectionDictionary at: conn)  at: 1) removeIfPresent: rs
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+removeWriteStream: ws forConnection: conn
+
+"Private. Do not call directly unless you know what you're doing."
+
+((self _streamsForConnectionDictionary at: conn)  at: 2) removeIfPresent: ws
 %
 category: 'Constants'
 classmethod: GsPostgresConnection
@@ -1454,14 +1548,6 @@ _allPostgresConnections
 "Private. Do not call directly unless you know what you're doing."
 
 ^ self getPostgresSessionState at: 1
-%
-category: 'Private'
-classmethod: GsPostgresConnection
-_allPostgresWriteStreams
-
-"Private. Do not call directly unless you know what you're doing."
-
-^ self getPostgresSessionState at: 4
 %
 category: 'Private'
 classmethod: GsPostgresConnection
@@ -1493,6 +1579,14 @@ Key: aGsPostgresConnection
 Value: Array of keys in in namedConnectionDictionary for aGsPostgresConnection"
 
 ^ self getPostgresSessionState at: 3
+%
+category: 'Private'
+classmethod: GsPostgresConnection
+_streamsForConnectionDictionary
+
+"Private. Do not call directly unless you know what you're doing."
+
+^ self getPostgresSessionState at: 4
 %
 ! ------------------- Instance methods for GsPostgresConnection
 category: 'Transaction Control'
@@ -1588,7 +1682,7 @@ commitTransaction
 
 "Executes COMMIT WORK on Postgres"
 
-self class flushAllStreams .
+self class  flushAllWriteStreamsForConnection: self .
 self executeNoResults: 'COMMIT WORK' .
 ^ self
 %
@@ -1624,6 +1718,7 @@ disconnect
 "Terminates the receiver's connection with Postgres if it has one."
 
 self pqConnCptr notNil ifTrue:[
+	(self class) freeAllReadStreamsForConnection: self ; freeAllWriteStreamsForConnection: self .
 	self libpq logoutConnection: pqConnCptr.
 	self class removeConnection: self.
 	pqConnCptr := nil
@@ -1655,7 +1750,7 @@ Caller must send #free to the object to free C memory when no longer needed."
 
 	| result |
 	^(result := self basicExecute: aString tupleClass: aClass) statusIsOk
-		ifTrue: [GsPostgresReadStream on: result]
+		ifTrue: [GsPostgresReadStream on: result forConnection: self ]
 		ifFalse:
 			[result free.
 			self raiseErrorWithMessage: self lastErrorMessage]
@@ -1742,7 +1837,7 @@ Raises an exception on error."
 				paramFormats: formats
 				resultFormat: formatInt.
 	^result isStatusOk
-		ifTrue: [GsPostgresReadStream on: result]
+		ifTrue: [GsPostgresReadStream on: result forConnection: self ]
 		ifFalse:
 			[result free.
 			self raiseErrorWithMessage: self lastErrorMessage]
@@ -2013,6 +2108,9 @@ primPrepare: sql witName: sName paramenters: anArray
 "Private. Do not call directly unless you know what you're doing.
 Prepares string sql with name sName and parameters anArray for subsequenty execution."
 
+"From Postgres docs:
+Also, although there is no libpq function for deleting a prepared statement, the SQL DEALLOCATE statement can be used for that purpose."
+
 | pgResult |
 ^ (pgResult := self libpq PQprepare: sql  statementName: sName numParams: anArray size paramTypes: anArray on: self pqConnCptr) isNull
 	ifTrue:[  self raiseErrorWithMessage: ('NULL returned by #PQprepare ' , sql )]
@@ -2032,7 +2130,7 @@ rollback
 
 "Executes ROLLBACK on Postgres"
 
-self class clearAllStreams .
+self class clearAllWriteStreamsForConnection: self .
 self executeNoResults: 'ROLLBACK' .
 ^ self
 %
@@ -2508,13 +2606,13 @@ collectionSpecies
 %
 category: 'Private'
 classmethod: GsPostgresReadStream
-on: aGsPostgresResult
+on: aGsPostgresResult forConnection: aConn
+	"Private. Do not call directly unless you know what you're doing."
 
-"Private. Do not call directly unless you know what you're doing."
-
-	^(self new initialize)
+	^(self new)
+		initializeWithConnection: aConn;
 		queryResult: aGsPostgresResult;
-		readLimit: aGsPostgresResult numRows ;
+		readLimit: aGsPostgresResult numRows;
 		yourself
 %
 ! ------------------- Instance methods for GsPostgresReadStream
@@ -2562,6 +2660,16 @@ columnNameAt: index
 
 ^ self queryResult columnNameAt: index
 %
+category: 'Accessing'
+method: GsPostgresReadStream
+conn
+	^conn
+%
+category: 'Updating'
+method: GsPostgresReadStream
+conn: newValue
+	conn := newValue
+%
 category: 'Stream Operations'
 method: GsPostgresReadStream
 contents
@@ -2580,6 +2688,16 @@ free
 
 "Free the C memory used by the receiver. The receiver may not be read after this message has been sent."
 
+	GsPostgresConnection removeReadStream: self forConnection: conn .
+	^ self freeMemory
+%
+category: 'Freeing'
+method: GsPostgresReadStream
+freeMemory
+
+"Free the C memory used by the receiver. The receiver may not be read after this message has been sent.
+Does not remove the receiver from the collection used to track read streams."
+
 	self queryResult
 		ifNotNil:
 			[self queryResult free.
@@ -2590,10 +2708,12 @@ free
 %
 category: 'Initialize'
 method: GsPostgresReadStream
-initialize
+initializeWithConnection: aConn
 
-position := 0.
-^ self
+	GsPostgresConnection addReadStream: self forConnection: aConn .
+	conn := aConn .
+	position := 0.
+	^ self
 %
 category: 'Testing'
 method: GsPostgresReadStream
@@ -2723,9 +2843,6 @@ self position: savePosition.
 category: 'Accessing'
 method: GsPostgresReadStream
 position
-
-"Answer the position. The first position is 0."
-
 	^position
 %
 category: 'Updating'
@@ -2746,9 +2863,6 @@ queryResult: newValue
 category: 'Accessing'
 method: GsPostgresReadStream
 readLimit
-
-"Answer the readLimit, which is the number of elements in the stream."
-
 	^readLimit
 %
 category: 'Updating'
@@ -3547,8 +3661,10 @@ free
 
 "Calls #PGclear on the pqResultCptr pointer. This releases the memory used by pqResultCptr and renders it invalid."
 
-self libpq PQclear: self pqResultCptr .
-self libpq: nil ; pqResultCptr: nil ; numRows: 0
+self libpq ifNotNil:[
+	self libpq PQclear: self pqResultCptr .
+	self libpq: nil ; pqResultCptr: nil ; numRows: 0
+]
 %
 category: 'Initialize'
 method: GsPostgresResult

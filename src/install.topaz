@@ -3,6 +3,7 @@ display oops
 
 input dochecks.topaz
 errorcount
+expectvalue false
 send UserGlobals at: #InstallInGlobals put: false
 errorcount
 input private.topaz

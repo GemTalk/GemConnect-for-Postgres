@@ -145,7 +145,8 @@ set compile_env: 0
 expectvalue /Class
 doit
 Object subclass: 'GsPostgresReadStream'
-  instVarNames: #( position queryResult readLimit)
+  instVarNames: #( conn position queryResult
+                    readLimit)
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()

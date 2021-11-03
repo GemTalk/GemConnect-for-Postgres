@@ -939,6 +939,18 @@ method: PostgresTestCase
 errorNum: newValue
 	errorNum := newValue
 %
+category: 'Testing'
+method: PostgresTestCase
+hasReadStream: rs
+
+^ GsPostgresConnection hasReadStream: rs forConnection: self connection
+%
+category: 'Testing'
+method: PostgresTestCase
+hasWriteStream: ws
+
+^ GsPostgresConnection hasWriteStream: ws forConnection: self connection
+%
 category: 'Tables'
 method: PostgresTestCase
 insertValue: value intoTable: table
@@ -1159,6 +1171,7 @@ test_execute
 		populateWidgetTable ;
 		should:[self connection execute: 'garbage' ] raise: self errorNum ;
 		assert: ((rs := self connection execute: ('select * from ', self class widgetTableName )) class) equals: GsPostgresReadStream ;
+		assert: (self hasReadStream: rs) ;
 		assert: (obj := rs next) class equals: OrderedCollection ;
 		assert: obj size equals: self class widgetTableNumColumns;
 		assert: rs numColumns equals: self class widgetTableNumColumns  ;
@@ -1169,6 +1182,7 @@ test_execute
 		assert: rs beforeEnd ;
 		assert: rs isExternal ;
 		assert: rs free equals: rs ;
+		deny: (self hasReadStream: rs) ;
 		yourself ] ensure:[ self dropWidgetTable ]
 %
 category: 'Tests'
@@ -1344,6 +1358,7 @@ _test_fetchTuplesFromPostgresForTupleClassName: aSymbol
 							execute: 'select * from ' , self class widgetTableName
 							tupleClass: aTupleClass) class
 			equals: GsPostgresReadStream;
+		assert: (self hasReadStream: rs) ;
 		deny: rs atEnd;
 		assert: rs atBeginning;
 		assert: rs beforeEnd;
@@ -1365,6 +1380,7 @@ _test_fetchTuplesFromPostgresForTupleClassName: aSymbol
 		deny: rs position identical: 0;
 		assert: rs position identical: rs readLimit]
 			ensure: [rs ifNotNil: [rs free]].
+	self deny: (self hasReadStream: rs) .
 	^self
 %
 category: 'Tests (private)'
@@ -1410,7 +1426,7 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		assert: (ws := self connection openInsertCursorOn: aTupleClass) class
 			equals: GsPostgresWriteStream;
 		assert: ws isExternal;
-		assert: (GsPostgresConnection hasWriteStream: ws);
+		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
 		assert: ws position identical: 0;
 		assert: (ws nextPutAll: objs) identical: ws;
@@ -1418,13 +1434,13 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		assert: self connection rollback identical: self connection ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
-		deny: (GsPostgresConnection hasWriteStream: ws) .
+		deny: (self hasWriteStream: ws) .
 
 	self
 		assert: (ws := self connection openInsertCursorOn: aTupleClass) class
 			equals: GsPostgresWriteStream;
 		assert: ws isExternal;
-		assert: (GsPostgresConnection hasWriteStream: ws);
+		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
 		assert: ws position identical: 0;
 		assert: (ws nextPutAll: objs) identical: ws;
@@ -1432,7 +1448,7 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		assert: self connection commitTransaction identical: self connection ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
-		deny: (GsPostgresConnection hasWriteStream: ws) .
+		deny: (self hasWriteStream: ws) .
 		
 
 	[| a b |
@@ -1442,22 +1458,24 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 									orderBy: 'id')
 							tupleClass: aTupleClass) class
 			identical: GsPostgresReadStream;
-		assert: rs size identical: objs size.
+		assert: rs size identical: objs size;
+		assert: (self hasReadStream: rs) .
 	1 to: objsFromPg size
 		do: [:n | self assert: (a := ws next) equals: (b := objs at: n)]]
 			ensure: [rs ifNotNil: [rs free]].
+	self deny: (self hasReadStream: rs) .
 	objs do: [:e | e isActive: false].
 	self
 		assert: (ws := self connection openUpdateCursorOn: aTupleClass) class
 			equals: GsPostgresWriteStream;
-		assert: (GsPostgresConnection hasWriteStream: ws);
+		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
 		assert: (ws nextPutAll: objs) identical: ws;
 		assert: ws hasUnflushedData ;
 		assert: self connection commitTransaction identical: self connection ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
-		deny: (GsPostgresConnection hasWriteStream: ws) .
+		deny: (self hasWriteStream: ws) .
 
 	[self
 		assert: (rs := self connection
@@ -1466,22 +1484,24 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 							tupleClass: aTupleClass) class
 			identical: GsPostgresReadStream;
 		assert: (objsFromPg := rs contents) class identical: OrderedCollection;
-		assert: objsFromPg size identical: objs size.
+		assert: objsFromPg size identical: objs size;
+		assert: (self hasReadStream: rs) .
 	1 to: objsFromPg size
 		do: [:n | |a b |
 			self assert: (a:= objsFromPg at: n) equals: (b :=objs at: n)]]
 			ensure: [rs ifNotNil: [rs free]].
+	self deny: (self hasReadStream: rs) .
 	self
 		assert: (ws := self connection openDeleteCursorOn: aTupleClass) class
 			equals: GsPostgresWriteStream;
-		assert: (GsPostgresConnection hasWriteStream: ws);
+		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
 		assert: (ws nextPutAll: objs) identical: ws;
 		assert: ws hasUnflushedData ;
 		assert: self connection commitTransaction identical: self connection ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
-		deny: (GsPostgresConnection hasWriteStream: ws) .
+		deny: (self hasWriteStream: ws) .
 
 	[self
 		assert: (rs := self connection
@@ -1489,8 +1509,10 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 									orderBy: 'id')
 							tupleClass: aTupleClass) class
 			identical: GsPostgresReadStream;
+		assert: (self hasReadStream: rs) ;
 		assert: rs size identical: 0]
 			ensure: [rs ifNotNil: [rs free]].
+	self deny: (self hasReadStream: rs) .
 	^self
 %
 category: 'Tests (private)'
@@ -1515,13 +1537,15 @@ _test_pgType: pgType withGsClass: gsClass gsCreateBlock: createBlock gsUpdateBlo
 	self insertValue: str intoTable: tableName.
 	rs := self selectAllFromTable: tableName.
 	self
-		assert: rs class identical: GsPostgresReadStream.
+		assert: rs class identical: GsPostgresReadStream ;
+		assert: (self hasReadStream: rs).
 	override ifTrue:[ rs overrideType: gsClass forColumnNumber: 1 ] . "Some types like DateTime need this"
 	self	assert: (oc := rs next) class identical: OrderedCollection;
 		assert: oc size identical: 1;
 		assert: (newObj := oc first) class identical: gsClass;
 		assert: obj equals: newObj.
 	rs free.
+	self deny: (self hasReadStream: rs).
 	obj := updateBlock value: obj.
 	self
 		assert: (newStr := GsPostgresWriteStream postgresStringForObject: obj escaped: true)
@@ -1530,17 +1554,22 @@ _test_pgType: pgType withGsClass: gsClass gsCreateBlock: createBlock gsUpdateBlo
 	self updateTable: tableName oldValue: str newValue: newStr.
 	rs := self selectAllFromTable: tableName.
 	self
-		assert: rs class identical: GsPostgresReadStream.
+		assert: rs class identical: GsPostgresReadStream ;
+		assert: (self hasReadStream: rs).
 	override ifTrue:[ rs overrideType: gsClass forColumnNumber: 1 ] . "Some types like DateTime need this"
 	self	assert: (oc := rs next) class identical: OrderedCollection;
 		assert: oc size identical: 1;
 		assert: (newObj := oc first) class identical: gsClass;
 		assert: newObj equals: obj.
 	rs free.
+	self deny: (self hasReadStream: rs).
 	self deleteFromTable: tableName value: newStr.
 	rs := self selectAllFromTable: tableName.
-	^self
-		assert: rs next identical: nil;
+	self
+		assert: (self hasReadStream: rs) ;
+		assert: rs next identical: nil.
+	rs free.
+	^ self deny: (self hasReadStream: rs) ;
 		dropTableNamed: tableName;
 		yourself
 %
