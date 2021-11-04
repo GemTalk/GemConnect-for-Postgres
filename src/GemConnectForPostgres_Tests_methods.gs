@@ -1346,6 +1346,43 @@ updateTable: table oldValue: oldVal newValue: newVal
 %
 category: 'Tests (private)'
 method: PostgresTestCase
+_testWriteStreamRollbackForStream: ws withCollection: coll
+
+self 
+	assert: (self hasWriteStream: ws);
+	deny: ws hasUnflushedData ;
+	assert: ws batchSize identical: GsPostgresConnection defaultBatchSize ;
+	assert: ws numTuplesFlushed identical: 0 ;
+	assert: (ws nextPutAll: coll) identical: ws;
+	deny: ws hasUnflushedData ;
+	assert: ws numTuplesFlushed identical: coll size ;
+	assert: self connection rollback identical: self connection.
+ws 	numTuplesFlushed: 0 ;
+	disableAutoFlush.
+self 
+	assert: (self hasWriteStream: ws);
+	deny: ws hasUnflushedData ;
+	assert: ws batchSize identical: SmallInteger maximumValue ;
+	assert: ws numTuplesFlushed identical: 0 ;
+	assert: (ws nextPutAll: coll) identical: ws;
+	assert: ws numTuplesUnflushed identical: coll size ;
+	assert: ws numTuplesFlushed identical: 0 ;
+	assert: ws hasUnflushedData ;
+	assert: self connection rollback identical: self connection ;
+	deny: ws hasUnflushedData ;
+	assert: ws numTuplesFlushed identical: 0 ;
+	assert: (ws nextPutAll: coll) identical: ws;
+	assert: ws numTuplesUnflushed identical: coll size ;
+	assert: ws flush identical: ws ;
+	deny: ws hasUnflushedData ;
+	assert: ws numTuplesFlushed identical: coll size;
+	assert: self connection rollback identical: self connection.
+ws 	numTuplesFlushed: 0 ;
+	enableAutoFlush.
+^ self
+%
+category: 'Tests (private)'
+method: PostgresTestCase
 _test_fetchTuplesFromPostgresForTupleClassName: aSymbol
 
 	| rs assoc aTupleClass |
@@ -1421,18 +1458,11 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		assert: objs size identical: 100;
 		assert: objs first class == aTupleClass.
 
-"Add to write stream then rollback"
+"Run the rollback tests"
 	self
 		assert: (ws := self connection openInsertCursorOn: aTupleClass) class
-			equals: GsPostgresWriteStream;
-		assert: ws isExternal;
-		assert: (self hasWriteStream: ws);
-		deny: ws hasUnflushedData ;
-		assert: ws position identical: 0;
-		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws hasUnflushedData ;
-		assert: self connection rollback identical: self connection ;
-		deny: ws hasUnflushedData ;
+			equals: GsPostgresWriteStream ;
+		_testWriteStreamRollbackForStream: ws withCollection: objs ;
 		assert: ws free identical: ws ;
 		deny: (self hasWriteStream: ws) .
 
@@ -1442,14 +1472,14 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		assert: ws isExternal;
 		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
-		assert: ws position identical: 0;
 		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws hasUnflushedData ;
+		deny: ws hasUnflushedData ; "auto flush is active"
+		assert: self connection inTransaction ;
 		assert: self connection commitTransaction identical: self connection ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
 		deny: (self hasWriteStream: ws) .
-		
+
 
 	[| a b |
 	self
@@ -1470,9 +1500,13 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 			equals: GsPostgresWriteStream;
 		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
+		deny: self connection inTransaction ;
+		assert: ws disableAutoFlush identical: ws ;
 		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws hasUnflushedData ;
+		assert: ws hasUnflushedData ; "autoflush inactive"
+		deny: self connection inTransaction ;
 		assert: self connection commitTransaction identical: self connection ;
+		deny: self connection inTransaction ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
 		deny: (self hasWriteStream: ws) .
@@ -1497,7 +1531,7 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
 		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws hasUnflushedData ;
+		deny: ws hasUnflushedData ; "auto flush active"
 		assert: self connection commitTransaction identical: self connection ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;

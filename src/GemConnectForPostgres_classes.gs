@@ -5,8 +5,8 @@ expectvalue /Class
 doit
 Object subclass: 'GsPostgresWriteStream'
   instVarNames: #( conn libpq tupleClass
-                    sql preparedStatementName position collection
-                    columnMap keyMap)
+                    sql preparedStatementName batchSize numTuplesFlushed
+                    collection columnMap keyMap)
   classVars: #( ClassToPostgresStringTable)
   classInstVars: #()
   poolDictionaries: #()
@@ -89,7 +89,7 @@ expectvalue /Class
 doit
 (UserGlobals at: #GcfpPgConnSuperClass) subclass: 'GsPostgresConnection'
   instVarNames: #( libpq pqConnCptr pgParameters
-                    unicodeStrings)
+                    unicodeStrings batchSize inTransaction)
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()

@@ -54,7 +54,7 @@ dateTimeToPostgresString: aDateTime escaped: isEscaped withTimezone: includeTz
 		addAll: (self zeroPadLeft: (aDateTime millisecondsGmt \\ 1000) asString
 					toDigits: 3).
 	includeTz
-		ifTrue: 
+		ifTrue:
 			[aString add: Character space.
 			(aDateTime isDstIn: aTimeZone)
 				ifTrue: [aString addAll: aTimeZone dstPrintString]
@@ -262,14 +262,23 @@ zeroPadLeft: aString toDigits: anInt
 	^result
 %
 ! ------------------- Instance methods for GsPostgresWriteStream
+category: 'Accessing'
+method: GsPostgresWriteStream
+batchSize
+	^batchSize
+%
+category: 'Updating'
+method: GsPostgresWriteStream
+batchSize: newValue
+	batchSize := newValue
+%
 category: 'Stream Operations'
 method: GsPostgresWriteStream
 clear
 
 "Clears the contents of the receiver and makes it empty."
 
-	collection size: 0 .
-	position := 0.
+collection size: 0 .
 %
 category: 'Accessing'
 method: GsPostgresWriteStream
@@ -300,6 +309,30 @@ category: 'Updating'
 method: GsPostgresWriteStream
 conn: newValue
 	conn := newValue
+%
+category: 'Accessing'
+method: GsPostgresWriteStream
+defaultBatchSize
+	^conn class defaultBatchSize
+%
+category: 'Updating'
+method: GsPostgresWriteStream
+disableAutoFlush
+
+"Disable automatic flushing of the receiver based on the size of unflushed data. 
+Flush will be done at commit time, otherwise must be done manually."
+
+	self batchSize: SmallInteger maximumValue .
+	^self
+%
+category: 'Updating'
+method: GsPostgresWriteStream
+enableAutoFlush
+
+"Enable automatic flushing of the receiver when unflushed data size reaches the default batch size."
+
+	self batchSize: self defaultBatchSize .
+	^self
 %
 category: 'Flushing'
 method: GsPostgresWriteStream
@@ -332,23 +365,33 @@ executePreparedWith: aTupleObject
 category: 'Flushing'
 method: GsPostgresWriteStream
 flush
+	"Each execute runs in its own transaction"
 
-"Each execute runs in its own transaction"
-position + 1 to: collection size do:[:n|
-	self executePreparedWith: (collection at: n).
-].
-position := collection size.
-^ self
+	self hasUnflushedData
+		ifTrue: 
+			[self conn beginTransaction.
+			self collection do: [:each | self executePreparedWith: each].
+			self numTuplesFlushed: self numTuplesFlushed + collection size.
+			self clear].
+	^self
 %
 category: 'Flushing'
 method: GsPostgresWriteStream
-flushInOneTransaction
+flushAndCommit
 
-"Flushes all objects in a single transaction"
+"Flushes all objects in a single transaction and commits"
 
 self conn begin.
 self flush .
 self conn commitTransaction.
+^ self
+%
+category: 'Flushing'
+method: GsPostgresWriteStream
+flushIfNeeded
+
+self needsFlush 
+	ifTrue:[ self flush ].
 ^ self
 %
 category: 'Freeing'
@@ -370,14 +413,14 @@ category: 'Testing'
 method: GsPostgresWriteStream
 hasUnflushedData
 
-^ position < collection size
+^ self numTuplesUnflushed > 0
 %
 category: 'Initialize'
 method: GsPostgresWriteStream
 initialize
 	collection := Array new.
-	position := 0.
 	preparedStatementName := GsUuidV4 new asString .
+	numTuplesFlushed := 0.
 %
 category: 'Initialize'
 method: GsPostgresWriteStream
@@ -387,7 +430,8 @@ initializeWithConnection: aConn
 	GsPostgresConnection addWriteStream: self forConnection: aConn .
 	self
 		conn: aConn;
-		libpq: aConn libpq
+		libpq: aConn libpq ;
+		batchSize: aConn batchSize
 %
 category: 'Testing'
 method: GsPostgresWriteStream
@@ -414,29 +458,42 @@ method: GsPostgresWriteStream
 libpq: newValue
 	libpq := newValue
 %
+category: 'Testing'
+method: GsPostgresWriteStream
+needsFlush
+
+^ self numTuplesUnflushed >= self batchSize
+%
 category: 'Stream Operations'
 method: GsPostgresWriteStream
 nextPut: tupleObj
 
-collection add: tupleObj .
+self collection add: tupleObj .
+self flushIfNeeded .
 ^ self
 %
 category: 'Stream Operations'
 method: GsPostgresWriteStream
 nextPutAll: aCollection
 
-collection addAll: aCollection .
+self collection addAll: aCollection .
+self flushIfNeeded .
 ^ self
 %
 category: 'Accessing'
 method: GsPostgresWriteStream
-position
-	^position
+numTuplesFlushed
+	^numTuplesFlushed
 %
-category: 'Stream Operations'
+category: 'Updating'
 method: GsPostgresWriteStream
-position: newValue
-	position := newValue
+numTuplesFlushed: newValue
+	numTuplesFlushed := newValue
+%
+category: 'Accessing'
+method: GsPostgresWriteStream
+numTuplesUnflushed
+	^ self collection size
 %
 category: 'Accessing'
 method: GsPostgresWriteStream
@@ -1113,7 +1170,7 @@ addWriteStream: ws forConnection: conn
 %
 category: 'Connection Management'
 classmethod: GsPostgresConnection
-allNamesForConnection: aGsPostgresConnection 
+allNamesForConnection: aGsPostgresConnection
 
 "Answer an Array of strings which are all names associated with aGsPostgresConnection ."
 
@@ -1159,6 +1216,14 @@ connectionWithName: aName
 "Answer aGsPostgresConnection cached under the name aName, or nil if not found."
 
 ^ self _namedConnectionDictionary at: aName otherwise:  nil
+%
+category: 'Constants'
+classmethod: GsPostgresConnection
+defaultBatchSize
+
+"Default number of elements added to a GsPostgresWriteStream before it is flushed."
+
+^ 20
 %
 category: 'Error Handling'
 classmethod: GsPostgresConnection
@@ -1458,7 +1523,7 @@ Format of Array stored at session state index 25:
 	2 - NamedConnectionsDictionary (KeyValueDictionary, name -> connection)
 	3 - NamedConnectionsReverseDictionary (IdentityKeyValueDictionary, connection -> Array of names)
 	4 - StreamsForConnectionDictionary (IdentityKeyValueDictionary, connection -> Array[2]: { ReadStreams .  WriteStreams }
-		
+
 "
 
 	^Array
@@ -1478,13 +1543,18 @@ newWithParameters: aGsPostgresConnectionParameters
 category: 'Instance Creation'
 classmethod: GsPostgresConnection
 newWithParameters: aGsPostgresConnectionParameters unicodeStrings: aBoolean
-
-"Create a new Postgres connection using given parameters.
+	"Create a new Postgres connection using given parameters.
 If aBoolean is true, multibyte strings from Postgres are translated to Unicode16 and Unicode32 objects.
 If aBoolean is false, multibyte strings from Postgres are translated to DoubleByteString and QuadByteString objects.
 The connection is created in a disconnected state."
 
-^ self basicNew libpq: GsLibpq new ; pgParameters: aGsPostgresConnectionParameters ; unicodeStrings: aBoolean ; yourself
+	^(self basicNew)
+		libpq: GsLibpq new;
+		pgParameters: aGsPostgresConnectionParameters;
+		unicodeStrings: aBoolean;
+		batchSize: self defaultBatchSize;
+		inTransaction: false ;
+		yourself
 %
 category: 'Error Handling'
 classmethod: GsPostgresConnection
@@ -1642,14 +1712,27 @@ basicExecuteWithParameters: aString numParameters: count paramTypes: typeArray p
 		sql: aString
 		unicodeStrings: self unicodeStrings
 %
+category: 'Accessing'
+method: GsPostgresConnection
+batchSize
+	^batchSize
+%
+category: 'Updating'
+method: GsPostgresConnection
+batchSize: newValue
+	batchSize := newValue
+%
 category: 'Transaction Control'
 method: GsPostgresConnection
 begin
+	"Executes BEGIN on Postgres"
 
-"Executes BEGIN on Postgres"
-
-self executeNoResults: 'BEGIN' .
-^ self
+	self inTransaction
+		ifFalse: 
+			[self
+				executeNoResults: 'BEGIN';
+				inTransaction: true].
+	^self
 %
 category: 'Transaction Control'
 method: GsPostgresConnection
@@ -1683,7 +1766,7 @@ commitTransaction
 "Executes COMMIT WORK on Postgres"
 
 self class  flushAllWriteStreamsForConnection: self .
-self executeNoResults: 'COMMIT WORK' .
+self executeNoResults: 'COMMIT WORK' ; inTransaction: false.
 ^ self
 %
 category: 'Connection Management'
@@ -1841,6 +1924,16 @@ Raises an exception on error."
 		ifFalse:
 			[result free.
 			self raiseErrorWithMessage: self lastErrorMessage]
+%
+category: 'Accessing'
+method: GsPostgresConnection
+inTransaction
+	^inTransaction
+%
+category: 'Updating'
+method: GsPostgresConnection
+inTransaction: newValue
+	inTransaction := newValue
 %
 category: 'Connection Management'
 method: GsPostgresConnection
@@ -2131,7 +2224,7 @@ rollback
 "Executes ROLLBACK on Postgres"
 
 self class clearAllWriteStreamsForConnection: self .
-self executeNoResults: 'ROLLBACK' .
+self executeNoResults: 'ROLLBACK' ; inTransaction: false.
 ^ self
 %
 category: 'Transaction Control'
