@@ -262,16 +262,6 @@ zeroPadLeft: aString toDigits: anInt
 	^result
 %
 ! ------------------- Instance methods for GsPostgresWriteStream
-category: 'Accessing'
-method: GsPostgresWriteStream
-batchSize
-	^batchSize
-%
-category: 'Updating'
-method: GsPostgresWriteStream
-batchSize: newValue
-	batchSize := newValue
-%
 category: 'Stream Operations'
 method: GsPostgresWriteStream
 clear
@@ -310,30 +300,6 @@ method: GsPostgresWriteStream
 conn: newValue
 	conn := newValue
 %
-category: 'Accessing'
-method: GsPostgresWriteStream
-defaultBatchSize
-	^conn class defaultBatchSize
-%
-category: 'Updating'
-method: GsPostgresWriteStream
-disableAutoFlush
-
-"Disable automatic flushing of the receiver based on the size of unflushed data.
-Flush will be done at commit time, otherwise must be done manually."
-
-	self batchSize: SmallInteger maximumValue .
-	^self
-%
-category: 'Updating'
-method: GsPostgresWriteStream
-enableAutoFlush
-
-"Enable automatic flushing of the receiver when unflushed data size reaches the default batch size."
-
-	self batchSize: self defaultBatchSize .
-	^self
-%
 category: 'Flushing'
 method: GsPostgresWriteStream
 executePreparedWith: aTupleObject
@@ -365,34 +331,16 @@ executePreparedWith: aTupleObject
 category: 'Flushing'
 method: GsPostgresWriteStream
 flush
-	"Each execute runs in its own transaction"
+"By default, Postgres executes each element in its own transaction.
+To avoid this, begin a transation before flushing."
 
 	self hasUnflushedData
 		ifTrue:
-			[self conn beginTransaction.
+			[
 			self collection do: [:each | self executePreparedWith: each].
 			self numTuplesFlushed: self numTuplesFlushed + collection size.
 			self clear].
 	^self
-%
-category: 'Flushing'
-method: GsPostgresWriteStream
-flushAndCommit
-
-"Flushes all objects in a single transaction and commits"
-
-self conn begin.
-self flush .
-self conn commitTransaction.
-^ self
-%
-category: 'Flushing'
-method: GsPostgresWriteStream
-flushIfNeeded
-
-self needsFlush
-	ifTrue:[ self flush ].
-^ self
 %
 category: 'Freeing'
 method: GsPostgresWriteStream
@@ -415,12 +363,20 @@ hasUnflushedData
 
 ^ self numTuplesUnflushed > 0
 %
+category: 'Updating'
+method: GsPostgresWriteStream
+incrementPositionBy: amount
+
+position := position + amount .
+^ self
+%
 category: 'Initialize'
 method: GsPostgresWriteStream
 initialize
 	collection := Array new.
 	preparedStatementName := GsUuidV4 new asString .
 	numTuplesFlushed := 0.
+	position := 0.
 %
 category: 'Initialize'
 method: GsPostgresWriteStream
@@ -430,8 +386,7 @@ initializeWithConnection: aConn
 	GsPostgresConnection addWriteStream: self forConnection: aConn .
 	self
 		conn: aConn;
-		libpq: aConn libpq ;
-		batchSize: aConn batchSize
+		libpq: aConn libpq 
 %
 category: 'Testing'
 method: GsPostgresWriteStream
@@ -458,18 +413,12 @@ method: GsPostgresWriteStream
 libpq: newValue
 	libpq := newValue
 %
-category: 'Testing'
-method: GsPostgresWriteStream
-needsFlush
-
-^ self numTuplesUnflushed >= self batchSize
-%
 category: 'Stream Operations'
 method: GsPostgresWriteStream
 nextPut: tupleObj
 
 self collection add: tupleObj .
-self flushIfNeeded .
+self incrementPositionBy: 1 .
 ^ self
 %
 category: 'Stream Operations'
@@ -477,7 +426,7 @@ method: GsPostgresWriteStream
 nextPutAll: aCollection
 
 self collection addAll: aCollection .
-self flushIfNeeded .
+self incrementPositionBy: aCollection size .
 ^ self
 %
 category: 'Accessing'
@@ -494,6 +443,16 @@ category: 'Accessing'
 method: GsPostgresWriteStream
 numTuplesUnflushed
 	^ self collection size
+%
+category: 'Accessing'
+method: GsPostgresWriteStream
+position
+	^position
+%
+category: 'Private'
+method: GsPostgresWriteStream
+position: newValue
+	position := newValue
 %
 category: 'Accessing'
 method: GsPostgresWriteStream
@@ -1217,14 +1176,6 @@ connectionWithName: aName
 
 ^ self _namedConnectionDictionary at: aName otherwise:  nil
 %
-category: 'Constants'
-classmethod: GsPostgresConnection
-defaultBatchSize
-
-"Default number of elements added to a GsPostgresWriteStream before it is flushed."
-
-^ 20
-%
 category: 'Error Handling'
 classmethod: GsPostgresConnection
 errorClass
@@ -1552,7 +1503,6 @@ The connection is created in a disconnected state."
 		libpq: GsLibpq new;
 		pgParameters: aGsPostgresConnectionParameters;
 		unicodeStrings: aBoolean;
-		batchSize: self defaultBatchSize;
 		inTransaction: false ;
 		yourself
 %
@@ -1726,16 +1676,6 @@ basicExecuteWithParameters: aString numParameters: count paramTypes: typeArray p
 		result: pgResult
 		sql: aString
 		unicodeStrings: self unicodeStrings
-%
-category: 'Accessing'
-method: GsPostgresConnection
-batchSize
-	^batchSize
-%
-category: 'Updating'
-method: GsPostgresConnection
-batchSize: newValue
-	batchSize := newValue
 %
 category: 'Transaction Control'
 method: GsPostgresConnection

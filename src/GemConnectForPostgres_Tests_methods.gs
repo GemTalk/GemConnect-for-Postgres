@@ -821,6 +821,24 @@ widgetTableQuadByteCodePoints
 }
 %
 ! ------------------- Instance methods for PostgresTestCase
+category: 'Transactions'
+method: PostgresTestCase
+begin
+
+self deny: self inTransaction.
+self connection beginTransaction.
+self assert: self inTransaction.
+^self
+%
+category: 'Transactions'
+method: PostgresTestCase
+commit
+
+self assert: self inTransaction.
+self connection commitTransaction.
+self deny: self inTransaction.
+^self
+%
 category: 'Accessing'
 method: PostgresTestCase
 connection
@@ -948,6 +966,12 @@ str := self class sqlForInsertValue: value  intoTableNamed: table.
 	yourself
 
 %
+category: 'Transactions'
+method: PostgresTestCase
+inTransaction
+
+^ self connection inTransaction.
+%
 category: 'Setup'
 method: PostgresTestCase
 populateWidgetTable
@@ -959,6 +983,15 @@ populateWidgetTable
 	inserts := self class widgetTableInsertStatements .
 	inserts do:[:e| self connection executeNoResults: e ].
 	^ self
+%
+category: 'Transactions'
+method: PostgresTestCase
+rollback
+
+self assert: self inTransaction.
+self connection rollbackTransaction.
+self deny: self inTransaction.
+^self
 %
 category: 'Tables'
 method: PostgresTestCase
@@ -1346,34 +1379,46 @@ _testWriteStreamRollbackForStream: ws withCollection: coll
 self
 	assert: (self hasWriteStream: ws);
 	deny: ws hasUnflushedData ;
-	assert: ws batchSize identical: GsPostgresConnection defaultBatchSize ;
 	assert: ws numTuplesFlushed identical: 0 ;
-	assert: (ws nextPutAll: coll) identical: ws;
-	deny: ws hasUnflushedData ;
-	assert: ws numTuplesFlushed identical: coll size ;
-	assert: self connection rollback identical: self connection.
-ws 	numTuplesFlushed: 0 ;
-	disableAutoFlush.
+	deny: self inTransaction ;
+	begin ; 
+	assert: self inTransaction .
+1 to: coll size do:[:n|
+	self 	assert: self inTransaction ;
+		assert: ws position identical: (n - 1);
+		assert: (ws nextPut: (coll at: n)) identical: ws;
+		assert: ws position identical: n;
+		assert: ws hasUnflushedData .
+		(n \\ 10) == 0 ifTrue:[ 	self assert: ws flush identical: ws ].
+].
+
+self assert: self inTransaction ;
+	rollback ;
+	deny: self inTransaction.
+
+ws numTuplesFlushed: 0 .
+
 self
+	begin ;
 	assert: (self hasWriteStream: ws);
 	deny: ws hasUnflushedData ;
-	assert: ws batchSize identical: SmallInteger maximumValue ;
 	assert: ws numTuplesFlushed identical: 0 ;
 	assert: (ws nextPutAll: coll) identical: ws;
 	assert: ws numTuplesUnflushed identical: coll size ;
 	assert: ws numTuplesFlushed identical: 0 ;
 	assert: ws hasUnflushedData ;
-	assert: self connection rollback identical: self connection ;
+	rollback ;
 	deny: ws hasUnflushedData ;
 	assert: ws numTuplesFlushed identical: 0 ;
+	begin ;
 	assert: (ws nextPutAll: coll) identical: ws;
 	assert: ws numTuplesUnflushed identical: coll size ;
 	assert: ws flush identical: ws ;
 	deny: ws hasUnflushedData ;
 	assert: ws numTuplesFlushed identical: coll size;
-	assert: self connection rollback identical: self connection.
-ws 	numTuplesFlushed: 0 ;
-	enableAutoFlush.
+	rollback .
+ws 	numTuplesFlushed: 0 .
+	
 ^ self
 %
 category: 'Tests (private)'
@@ -1498,10 +1543,14 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		assert: ws isExternal;
 		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
+		deny: self inTransaction ;
+		begin ;
+		assert: self inTransaction ;
 		assert: (ws nextPutAll: objs) identical: ws;
-		deny: ws hasUnflushedData ; "auto flush is active"
-		assert: self connection inTransaction ;
-		assert: self connection commitTransaction identical: self connection ;
+		assert: ws hasUnflushedData ; 
+		assert: self inTransaction ;
+		commit ;
+		deny: self inTransaction ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
 		deny: (self hasWriteStream: ws) .
@@ -1524,16 +1573,15 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 	self
 		assert: (ws := self connection openUpdateCursorOn: aTupleClass) class
 			equals: GsPostgresWriteStream;
+		deny: self inTransaction ;
 		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
-		deny: self connection inTransaction ;
-		assert: ws disableAutoFlush identical: ws ;
 		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws hasUnflushedData ; "autoflush inactive"
-		deny: self connection inTransaction ;
-		assert: self connection commitTransaction identical: self connection ;
-		deny: self connection inTransaction ;
+		assert: ws hasUnflushedData ; 
+		deny: self inTransaction ;
+		assert: ws flush identical: ws ;
 		deny: ws hasUnflushedData ;
+		deny: self inTransaction ;
 		assert: ws free identical: ws ;
 		deny: (self hasWriteStream: ws) .
 
@@ -1556,9 +1604,14 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 			equals: GsPostgresWriteStream;
 		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
+		deny: self inTransaction ;
+		begin ;
+		assert: self inTransaction ;
 		assert: (ws nextPutAll: objs) identical: ws;
-		deny: ws hasUnflushedData ; "auto flush active"
-		assert: self connection commitTransaction identical: self connection ;
+		assert: ws hasUnflushedData ; 
+		assert: self inTransaction ;
+		commit ;
+		deny: self inTransaction ;
 		deny: ws hasUnflushedData ;
 		assert: ws free identical: ws ;
 		deny: (self hasWriteStream: ws) .

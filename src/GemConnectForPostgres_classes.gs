@@ -5,8 +5,8 @@ expectvalue /Class
 doit
 Object subclass: 'GsPostgresWriteStream'
   instVarNames: #( conn libpq tupleClass
-                    sql preparedStatementName batchSize numTuplesFlushed
-                    collection columnMap keyMap)
+                    sql preparedStatementName numTuplesFlushed collection
+                    columnMap keyMap position)
   classVars: #( ClassToPostgresStringTable)
   classInstVars: #()
   poolDictionaries: #()
@@ -33,11 +33,11 @@ Instance Variables:
 	tupleClass (Class) - objects added to the stream are expected to be members of this class.
 	sql (String) - The SQL statement used to perform the write operation.
 	preparedStatementName (String) - name of the prepared statement in Postgres. Randomly generated as a UUID.
-	position (SmallInteger) - the position in the stream. The first position is 0.
+	numTuplesFlushed (SmallInteger) - number of tuples flushed to Postgres.
 	collection (Array) - The collection of objects in the stream.
 	columnMap (Array) - An array of GsPostgresColumnMapEntry objects for the tuple class.
 	keyMap (Array) - An array of GsPostgresColumnMapEntry objects for the tuple class specifying the keys in the target table.
-
+	position (SmallInteger) - total elements added to the stream. The first position is 0.
 Class Variables
 	ClassToPostgresStringTable (IdentityKeyValueDictionary) - table used to define methods for converting GemStone objects to
 		their Postgres string representations.
@@ -89,7 +89,7 @@ expectvalue /Class
 doit
 (UserGlobals at: #GcfpPgConnSuperClass) subclass: 'GsPostgresConnection'
   instVarNames: #( libpq pqConnCptr pgParameters
-                    unicodeStrings batchSize inTransaction)
+                    unicodeStrings inTransaction)
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()
@@ -100,8 +100,10 @@ doit
 expectvalue /Class
 doit
 GsPostgresConnection comment: 
-'GsPostgresConnection represents a connection to Postgres
-
+'GsPostgresConnection represents a connection to Postgres.
+If GsRdbConnection is present, GsPostgresConnection will be a subclass of it.
+If GsRdbConnection is not present, GsPostgresConnection will be a subclass Object.
+GsRdbConnection is a class installed by GemConnect for Oracle.
 Instance Variables:
 	libpq (GsLibpq) - an instance of GsLibpq. Contains information about the Postgres shared library connect.
 	pqConnCptr (CPointer) - Pointer to the C state of the Postgres connection (PGconn *)
@@ -110,6 +112,7 @@ Instance Variables:
 		true means return Unicode classses (Unicode16, Unicode32).
 		false means return DoubleByteString and QuadByteString objects.
 		Setting can be overridden by setting inst var class in GsPostgresColumnMapEntry to be the desired class.
+	inTransaction (Boolean) - true means the session is in a transaction, false means it is not.
 '
 %
 set compile_env: 0
