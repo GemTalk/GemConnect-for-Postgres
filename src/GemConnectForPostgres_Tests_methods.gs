@@ -312,20 +312,6 @@ unequal
 "A place to set breakpoints"
 ^ false
 %
-category: 'Validation'
-method: WidgetWithStrings
-validateWithTestCase: aPostgresTestCase
-
-| colMap |
-aPostgresTestCase assert: self rdbPostLoadCalled .
-
-"Scan the column map and ensure each inst var is a member of the right class"
-colMap := self class rdbColumnMapping .
-colMap do:[:entry| | iv |
-	iv := self perform: entry getMethodSelector.
-	aPostgresTestCase assert: iv class identical: entry instVarClass.
-].
-%
 ! ------------------- Remove existing behavior from WidgetWithUnicode
 removeAllMethods WidgetWithUnicode
 removeAllClassMethods WidgetWithUnicode
@@ -1208,14 +1194,6 @@ test_fetchTupleFromPostgres
 		_test_fetchTuplesFromPostgresForTupleClassName: #WidgetWithStrings;
 		_test_fetchTuplesFromPostgresForTupleClassName: #WidgetWithUnicode]
 			ensure: [self dropWidgetTable]
-
-"
-^ self
-		createWidgetTable;
-		populateWidgetTable;
-		_test_fetchTuplesFromPostgresForTupleClassName: #WidgetWithStrings;
-		_test_fetchTuplesFromPostgresForTupleClassName: #WidgetWithUnicode ;
-		yourself"
 %
 category: 'Tests'
 method: PostgresTestCase
@@ -1344,11 +1322,28 @@ updateTable: table oldValue: oldVal newValue: newVal
 			identical: self connection;
 		yourself
 %
+category: 'Tests'
+method: PostgresTestCase
+validateTupleObject: obj
+
+	"Scan the column map and ensure each inst var is a member of the right class"
+
+	| colMap |
+	colMap := obj class rdbColumnMapping.
+	colMap
+		ifNotNil: 
+			[self assert: obj rdbPostLoadCalled.
+			colMap do: 
+					[:entry |
+					| iv |
+					iv := obj perform: entry getMethodSelector.
+					self assert: iv class identical: entry instVarClass]]
+%
 category: 'Tests (private)'
 method: PostgresTestCase
 _testWriteStreamRollbackForStream: ws withCollection: coll
 
-self 
+self
 	assert: (self hasWriteStream: ws);
 	deny: ws hasUnflushedData ;
 	assert: ws batchSize identical: GsPostgresConnection defaultBatchSize ;
@@ -1359,7 +1354,7 @@ self
 	assert: self connection rollback identical: self connection.
 ws 	numTuplesFlushed: 0 ;
 	disableAutoFlush.
-self 
+self
 	assert: (self hasWriteStream: ws);
 	deny: ws hasUnflushedData ;
 	assert: ws batchSize identical: SmallInteger maximumValue ;
@@ -1383,41 +1378,72 @@ ws 	numTuplesFlushed: 0 ;
 %
 category: 'Tests (private)'
 method: PostgresTestCase
-_test_fetchTuplesFromPostgresForTupleClassName: aSymbol
+_test_fetchTuplesFromPostgresForTupleClass: aTupleClass readStream: rs
 
-	| rs assoc aTupleClass |
 	self
-		deny: (assoc := System myUserProfile resolveSymbol: aSymbol) identical: nil;
-		assert: (aTupleClass := assoc value) isBehavior.
-
-	[self
-		assert: (rs := self connection
-							execute: 'select * from ' , self class widgetTableName
-							tupleClass: aTupleClass) class
-			equals: GsPostgresReadStream;
-		assert: (self hasReadStream: rs) ;
+		assert: rs class equals: GsPostgresReadStream;
+		assert: (self hasReadStream: rs);
 		deny: rs atEnd;
 		assert: rs atBeginning;
 		assert: rs beforeEnd;
 		assert: rs isExternal;
 		assert: rs position identical: 0;
 		assert: rs readLimit identical: self class widgetTableNumRows.
-	[rs atEnd] whileFalse:
+	[rs atEnd] whileFalse: 
 			[| obj |
 			obj := rs next.
 			self
 				deny: obj identical: nil;
-				assert: obj class identical: aTupleClass.
-			obj validateWithTestCase: self].
-	self
+				assert: obj class identical: aTupleClass;
+				validateTupleObject: obj].
+	^self
 		assert: rs atEnd;
 		deny: rs atBeginning;
 		deny: rs beforeEnd;
 		assert: rs isExternal;
 		deny: rs position identical: 0;
-		assert: rs position identical: rs readLimit]
-			ensure: [rs ifNotNil: [rs free]].
-	self deny: (self hasReadStream: rs) .
+		assert: rs position identical: rs readLimit;
+		yourself
+%
+category: 'Tests (private)'
+method: PostgresTestCase
+_test_fetchTuplesFromPostgresForTupleClassName: aSymbol
+
+	| rs assoc aTupleClass cmdStr |
+	self
+		deny: (assoc := System myUserProfile resolveSymbol: aSymbol) identical: nil;
+		assert: (aTupleClass := assoc value) isBehavior.
+	cmdStr := 'select * from ' , self class widgetTableName.
+	
+	[self
+		assert: (rs := self connection execute: cmdStr tupleClass: aTupleClass) class equals: GsPostgresReadStream ;
+		_test_fetchTuplesFromPostgresForTupleClass: aTupleClass readStream: rs .
+		rs free .
+		self deny: (self hasReadStream: rs).
+		rs := nil.
+	] ensure: [rs ifNotNil: [rs free]].
+
+	[self
+		assert: (rs := self connection openCursorOn: cmdStr) class equals: GsPostgresReadStream ;
+		_test_fetchTuplesFromPostgresForTupleClass: OrderedCollection readStream: rs .
+		rs free .
+		self deny: (self hasReadStream: rs).
+		rs := nil.
+	] ensure: [rs ifNotNil: [rs free]].
+	[self
+		assert: (rs := self connection openCursorOn: cmdStr tupleClass: aTupleClass) class equals: GsPostgresReadStream ;
+		_test_fetchTuplesFromPostgresForTupleClass: aTupleClass readStream: rs .
+		rs free .
+		self deny: (self hasReadStream: rs).
+		rs := nil.
+	] ensure: [rs ifNotNil: [rs free]].
+	[self
+		assert: (rs := self connection openCursorOn: cmdStr tupleClass: aTupleClass columnMapping: aTupleClass rdbColumnMapping) class equals: GsPostgresReadStream ;
+		_test_fetchTuplesFromPostgresForTupleClass: aTupleClass readStream: rs .
+		rs free .
+		self deny: (self hasReadStream: rs).
+		rs := nil.
+	] ensure: [rs ifNotNil: [rs free]].
 	^self
 %
 category: 'Tests (private)'

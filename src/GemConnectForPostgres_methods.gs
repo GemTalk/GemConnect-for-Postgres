@@ -319,7 +319,7 @@ category: 'Updating'
 method: GsPostgresWriteStream
 disableAutoFlush
 
-"Disable automatic flushing of the receiver based on the size of unflushed data. 
+"Disable automatic flushing of the receiver based on the size of unflushed data.
 Flush will be done at commit time, otherwise must be done manually."
 
 	self batchSize: SmallInteger maximumValue .
@@ -368,7 +368,7 @@ flush
 	"Each execute runs in its own transaction"
 
 	self hasUnflushedData
-		ifTrue: 
+		ifTrue:
 			[self conn beginTransaction.
 			self collection do: [:each | self executePreparedWith: each].
 			self numTuplesFlushed: self numTuplesFlushed + collection size.
@@ -390,7 +390,7 @@ category: 'Flushing'
 method: GsPostgresWriteStream
 flushIfNeeded
 
-self needsFlush 
+self needsFlush
 	ifTrue:[ self flush ].
 ^ self
 %
@@ -1693,6 +1693,21 @@ Caller must send #free to the object to free C memory when no longer needed."
 %
 category: 'Private'
 method: GsPostgresConnection
+basicExecute: aString tupleClass: aClass columnMap: collMap
+"Private. Do not call directly unless you know what you're doing.
+Executes aString and returns a GsPostresResult object.
+Caller must send #free to the object to free C memory when no longer needed."
+
+	^GsPostgresResult
+		newWithLibrary: self libpq
+		result: (self primExecute: aString)
+		tupleClass: aClass
+		sql: aString
+		unicodeStrings: self unicodeStrings
+		columnMap: collMap
+%
+category: 'Private'
+method: GsPostgresConnection
 basicExecuteWithParameters: aString numParameters: count paramTypes: typeArray paramValues: values paramLengths: lengths paramFormats: formats resultFormat: formatInt
 
 "Private. Do not call directly unless you know what you're doing."
@@ -1728,7 +1743,7 @@ begin
 	"Executes BEGIN on Postgres"
 
 	self inTransaction
-		ifFalse: 
+		ifFalse:
 			[self
 				executeNoResults: 'BEGIN';
 				inTransaction: true].
@@ -1968,6 +1983,40 @@ libraryVersion
 Calls the Postgres function PQlibVersion. See https://www.postgresql.org/docs/11/libpq-misc.html for more information on this function."
 
 ^ self libpq PQlibVersion
+%
+category: 'Command Execution'
+method: GsPostgresConnection
+openCursorOn: commandString
+
+"Executes aString and returns a GsPostgresReadStream object.
+Caller must send #free to the result object to free C memory when no longer needed."
+
+	^self execute: commandString tupleClass: nil
+%
+category: 'Command Execution'
+method: GsPostgresConnection
+openCursorOn: commandString tupleClass: tupleClass
+
+"Executes aString and returns a GsPostgresReadStream object.
+Caller must send #free to the result object to free C memory when no longer needed."
+
+	^self execute: commandString tupleClass: tupleClass
+%
+category: 'Command Execution'
+method: GsPostgresConnection
+openCursorOn: commandString tupleClass: tupleClass columnMapping: columnMap
+
+
+"Executes aString and returns a GsPostgresReadStream object.
+Caller must send #free to the object to free C memory when no longer needed."
+
+	| result |
+	^(result := self basicExecute: commandString tupleClass: tupleClass columnMap: columnMap) statusIsOk
+		ifTrue: [GsPostgresReadStream on: result forConnection: self ]
+		ifFalse:
+			[result free.
+			self raiseErrorWithMessage: self lastErrorMessage]
+
 %
 category: 'Command Execution'
 method: GsPostgresConnection
@@ -3427,6 +3476,20 @@ aPqResultCptr is C pointer to a PGresult. The result does not use a tuple class.
 category: 'Instance Creation'
 classmethod: GsPostgresResult
 newWithLibrary: aGsLibpq result: aPqResultCptr tupleClass: aClass sql: aString unicodeStrings: aBoolean
+	"Create a new instance. aGsLibpq is the instance of GsLibpq creating the new instance and
+aPqResultCptr is C pointer to a PGresult. The result uses aClass for its tuple class."
+
+	^self
+		newWithLibrary: aGsLibpq
+		result: aPqResultCptr
+		tupleClass: aClass
+		sql: aString
+		unicodeStrings: aBoolean
+		columnMap: nil
+%
+category: 'Instance Creation'
+classmethod: GsPostgresResult
+newWithLibrary: aGsLibpq result: aPqResultCptr tupleClass: aClass sql: aString unicodeStrings: aBoolean columnMap: collMap
 
 "Create a new instance. aGsLibpq is the instance of GsLibpq creating the new instance and
 aPqResultCptr is C pointer to a PGresult. The result uses aClass for its tuple class."
@@ -3437,7 +3500,7 @@ aPqResultCptr is C pointer to a PGresult. The result uses aClass for its tuple c
 		tupleClass: aClass ;
 		sql: aString ;
 		unicodeStrings: aBoolean ;
-		initialize
+		initializeWithColumnMap: collMap
 %
 category: 'Instance Creation'
 classmethod: GsPostgresResult
@@ -3761,13 +3824,13 @@ self libpq ifNotNil:[
 %
 category: 'Initialize'
 method: GsPostgresResult
-initialize
+initializeWithColumnMap: collMap
 
 "Initializes and returns the receiver"
 
 	self unicodeStrings ifNil:[ self unicodeStrings: false ].
 	^self
-		setColumnMapEntries ;
+		setColumnMapEntries: collMap ;
 		setNumberOfRows;
 		setNumberOfColumns;
 		setPgColumnTypes;
@@ -4018,12 +4081,14 @@ resultStatusSymbol
 %
 category: 'Initialize (Private)'
 method: GsPostgresResult
-setColumnMapEntries
+setColumnMapEntries: collMap
+	"Private. Do not call directly unless you know what you're doing."
 
-"Private. Do not call directly unless you know what you're doing."
-
-	self tupleClass
-		ifNotNil: [self columnMapEntries: self tupleClass rdbColumnMapping].
+	collMap
+		ifNil: 
+			[self tupleClass
+				ifNotNil: [self columnMapEntries: self tupleClass rdbColumnMapping]]
+		ifNotNil: [self columnMapEntries: collMap].
 	^self
 %
 category: 'Initialize (Private)'
