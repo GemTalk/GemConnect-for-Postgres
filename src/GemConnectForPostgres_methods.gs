@@ -300,7 +300,7 @@ method: GsPostgresWriteStream
 conn: newValue
 	conn := newValue
 %
-category: 'Flushing'
+category: 'Command Execution'
 method: GsPostgresWriteStream
 executePreparedWith: aTupleObject
 
@@ -313,7 +313,7 @@ executePreparedWith: aTupleObject
 		do:
 			[:n |
 			| getter obj |
-			getter := (cMap at: n) getMethodSelector.	"getter selector, a Symbol"
+			getter := ((cMap at: n) at: 3). "getMethodSelector, getter selector, a Symbol"
 			obj := aTupleObject perform: getter.	"Fetch the object from the tuple"
 			params add: (cls postgresStringForObject: obj escaped: false )	"Convert to postgres string"].
 	keyMap notNil
@@ -322,7 +322,7 @@ executePreparedWith: aTupleObject
 				do:
 					[:n |
 					| getter obj |
-					getter := (keyMap at: n) getMethodSelector.	"getter selector, a Symbol"
+					getter := (keyMap at: n) at: 3.	"getter selector, a Symbol"
 					obj := aTupleObject perform: getter.	"Fetch the object from the tuple"
 					params add: (cls postgresStringForObject: obj escaped: false)	"Convert to postgres string"]].
 	^self conn executePreparedStatementWithName: self preparedStatementName
@@ -386,7 +386,7 @@ initializeWithConnection: aConn
 	GsPostgresConnection addWriteStream: self forConnection: aConn .
 	self
 		conn: aConn;
-		libpq: aConn libpq 
+		libpq: aConn libpq
 %
 category: 'Testing'
 method: GsPostgresWriteStream
@@ -1986,7 +1986,7 @@ openDeleteCursorOn: tupleClass keyMapping: keyMap tableName: tableName
 	"Returns an instance of GsPostgresWriteStream which may be used to delete rows from table tableName using key map keyMap."
 
 	| keyNames sql bindInfo result |
-	keyNames := keyMap collect: [:x | x columnName].
+	keyNames := keyMap collect: [:x | x at: 1]. "columnName"
 	bindInfo := Array with: tableName.
 	bindInfo addAll: keyNames.
 	sql := self class generateBindSQLDeleteForTable: tableName keys: keyNames.
@@ -2029,7 +2029,7 @@ openInsertCursorOn: tupleClass columnMapping: columnMap tableName: tableName
 "Returns an instance of GsPostgresWriteStream which may be used to insert rows into table tableName."
 
 	| colNames sql bindInfo result |
-	colNames := columnMap collect: [:x | x columnName ].
+	colNames := columnMap collect: [:x | x at: 1 ]. "columnName"
 	bindInfo := (Array with: tableName) addAll: colNames.
 	sql := self class generateBindSQLInsertForTable: tableName
 				columns: colNames.
@@ -2084,8 +2084,8 @@ openUpdateCursorOn: tupleClass columnMapping: columnMap keyMapping: keyMap table
 	"Returns an instance of GsPostgresWriteStream which may be used to update rows in table tableName."
 
 	| colNames sql bindInfo result keyNames |
-	colNames := columnMap collect: [:x | x columnName].
-	keyNames := keyMap collect: [:x | x columnName].
+	colNames := columnMap collect: [:x | x at: 1]. "columnName"
+	keyNames := keyMap collect: [:x | x at: 1]. "columnName"
 	bindInfo := (Array with: tableName) addAll: colNames.
 	sql := self class
 				generateBindSQLUpdateForTable: tableName
@@ -3009,6 +3009,18 @@ defaultSetSelectorForInstVar: anIv
 
 ^ ((String withAll: anIv asString) add: $: ; yourself ) asSymbol
 %
+category: 'Defaults'
+classmethod: GsPostgresColumnMapEntry
+instVarSize
+
+^5
+%
+category: 'Instance Creation'
+classmethod: GsPostgresColumnMapEntry
+new
+
+^self new: self instVarSize
+%
 category: 'Instance Creation'
 classmethod: GsPostgresColumnMapEntry
 newForColumn: colName instVar: ivName
@@ -3049,52 +3061,62 @@ newForColumn: colName instVar: ivName instVarClass: aClass
 category: 'Accessing'
 method: GsPostgresColumnMapEntry
 columnName
-	^columnName
+
+^self at: 1
 %
 category: 'Updating'
 method: GsPostgresColumnMapEntry
 columnName: newValue
-	columnName := newValue
+
+	self at: 1 put: newValue
 %
 category: 'Accessing'
 method: GsPostgresColumnMapEntry
 getMethodSelector
-	^getMethodSelector
+
+^self at: 3
 %
 category: 'Updating'
 method: GsPostgresColumnMapEntry
 getMethodSelector: newValue
-	getMethodSelector := newValue
+
+	self at: 3 put: newValue
 %
 category: 'Accessing'
 method: GsPostgresColumnMapEntry
 instVarClass
-	^instVarClass
+
+^self at: 5
 %
 category: 'Updating'
 method: GsPostgresColumnMapEntry
 instVarClass: newValue
-	instVarClass := newValue
+
+	self at: 5 put: newValue
 %
 category: 'Accessing'
 method: GsPostgresColumnMapEntry
 instVarName
-	^instVarName
+
+^self at: 2
 %
 category: 'Updating'
 method: GsPostgresColumnMapEntry
 instVarName: newValue
-	instVarName := newValue
+
+	self at: 2 put: newValue
 %
 category: 'Accessing'
 method: GsPostgresColumnMapEntry
 setMethodSelector
-	^setMethodSelector
+
+^self at: 4
 %
 category: 'Updating'
 method: GsPostgresColumnMapEntry
 setMethodSelector: newValue
-	setMethodSelector := newValue
+
+	self at: 4 put: newValue
 %
 ! ------------------- Remove existing behavior from GsPostgresResult
 removeAllMethods GsPostgresResult
@@ -3745,11 +3767,13 @@ defaultTypeForColumn: anInt
 category: 'Private'
 method: GsPostgresResult
 fetchDataInto: tupleInst fromRow: rowInt usingColumnMap: colMapEntry
+	"Private. Do not call directly unless you know what you're doing."
 
-"Private. Do not call directly unless you know what you're doing."
-
-	tupleInst perform: colMapEntry setMethodSelector
-		with: (self objectAtRow: rowInt columnName: colMapEntry columnName preferredClass: colMapEntry instVarClass)
+	tupleInst perform: (colMapEntry at: 4) "setMethodSelector"
+		with: (self
+				objectAtRow: rowInt
+				columnName: (colMapEntry at: 1) "columnName"
+				preferredClass: (self getPreferredClassForColumnMapEntry: colMapEntry))
 %
 category: 'Freeing'
 method: GsPostgresResult
@@ -3761,6 +3785,14 @@ self libpq ifNotNil:[
 	self libpq PQclear: self pqResultCptr .
 	self libpq: nil ; pqResultCptr: nil ; numRows: 0
 ]
+%
+category: 'Private'
+method: GsPostgresResult
+getPreferredClassForColumnMapEntry: entry
+
+^ entry size > 4
+	 ifTrue: [ entry at: 5 ] "entry has a preferred class, use it"
+	 ifFalse: [ nil ]		"old style entry is array of 4 elements, use nil"
 %
 category: 'Initialize'
 method: GsPostgresResult
@@ -4025,7 +4057,7 @@ setColumnMapEntries: collMap
 	"Private. Do not call directly unless you know what you're doing."
 
 	collMap
-		ifNil: 
+		ifNil:
 			[self tupleClass
 				ifNotNil: [self columnMapEntries: self tupleClass rdbColumnMapping]]
 		ifNotNil: [self columnMapEntries: collMap].

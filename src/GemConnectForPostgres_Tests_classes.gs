@@ -41,3 +41,29 @@ GsTestCase subclass: 'PostgresTestCase'
   options: #()
 
 %
+set compile_env: 0
+! ------------------- Class definition for WidgetWithStringsOldColumnMap
+expectvalue /Class
+doit
+WidgetWithStrings subclass: 'WidgetWithStringsOldColumnMap'
+  instVarNames: #()
+  classVars: #()
+  classInstVars: #()
+  poolDictionaries: #()
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
+  options: #()
+
+%
+set compile_env: 0
+! ------------------- Class definition for WidgetWithUnicodeOldColumnMap
+expectvalue /Class
+doit
+WidgetWithUnicode subclass: 'WidgetWithUnicodeOldColumnMap'
+  instVarNames: #()
+  classVars: #()
+  classInstVars: #()
+  poolDictionaries: #()
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
+  options: #()
+
+%

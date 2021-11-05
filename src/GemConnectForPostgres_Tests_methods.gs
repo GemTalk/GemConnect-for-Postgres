@@ -1225,7 +1225,9 @@ test_fetchTupleFromPostgres
 		createWidgetTable;
 		populateWidgetTable;
 		_test_fetchTuplesFromPostgresForTupleClassName: #WidgetWithStrings;
-		_test_fetchTuplesFromPostgresForTupleClassName: #WidgetWithUnicode]
+		_test_fetchTuplesFromPostgresForTupleClassName: #WidgetWithUnicode ;
+		_test_fetchTuplesFromPostgresForTupleClassName: #WidgetWithStringsOldColumnMap;
+		_test_fetchTuplesFromPostgresForTupleClassName: #WidgetWithUnicodeOldColumnMap ]
 			ensure: [self dropWidgetTable]
 %
 category: 'Tests'
@@ -1358,19 +1360,41 @@ updateTable: table oldValue: oldVal newValue: newVal
 category: 'Tests'
 method: PostgresTestCase
 validateTupleObject: obj
-
 	"Scan the column map and ensure each inst var is a member of the right class"
 
-	| colMap |
-	colMap := obj class rdbColumnMapping.
-	colMap
-		ifNotNil: 
+	| collMap |
+	collMap := obj class rdbColumnMapping.
+	collMap
+		ifNotNil:
 			[self assert: obj rdbPostLoadCalled.
-			colMap do: 
-					[:entry |
-					| iv |
-					iv := obj perform: entry getMethodSelector.
-					self assert: iv class identical: entry instVarClass]]
+			(collMap first isMemberOf: Array)
+				ifTrue: [self validateTupleObject: obj withOldCollMap: collMap]
+				ifFalse: [self validateTupleObject: obj withNewCollMap: collMap]]
+%
+category: 'Tests'
+method: PostgresTestCase
+validateTupleObject: obj withNewCollMap: newMap
+	"Scan the column map and ensure each inst var is a member of the right class"
+
+	self assert: obj rdbPostLoadCalled.
+	newMap do:
+			[:entry |
+			| iv |
+			"self assert: (entry isMemberOf: GsPostgresColumnMapEntry)."
+			iv := obj perform: entry getMethodSelector.
+			self assert: iv class identical: entry instVarClass]
+%
+category: 'Tests'
+method: PostgresTestCase
+validateTupleObject: obj withOldCollMap: oldMap
+	"Scan the column map and ensure each inst var is a member of the right class"
+
+	self assert: obj rdbPostLoadCalled.
+	oldMap do:
+			[:entry |
+			| iv |
+			self assert: (entry isMemberOf: Array).
+			iv := obj perform: (entry at: 3) "getMethodSelector" ]
 %
 category: 'Tests (private)'
 method: PostgresTestCase
@@ -1381,7 +1405,7 @@ self
 	deny: ws hasUnflushedData ;
 	assert: ws numTuplesFlushed identical: 0 ;
 	deny: self inTransaction ;
-	begin ; 
+	begin ;
 	assert: self inTransaction .
 1 to: coll size do:[:n|
 	self 	assert: self inTransaction ;
@@ -1418,7 +1442,7 @@ self
 	assert: ws numTuplesFlushed identical: coll size;
 	rollback .
 ws 	numTuplesFlushed: 0 .
-	
+
 ^ self
 %
 category: 'Tests (private)'
@@ -1434,7 +1458,7 @@ _test_fetchTuplesFromPostgresForTupleClass: aTupleClass readStream: rs
 		assert: rs isExternal;
 		assert: rs position identical: 0;
 		assert: rs readLimit identical: self class widgetTableNumRows.
-	[rs atEnd] whileFalse: 
+	[rs atEnd] whileFalse:
 			[| obj |
 			obj := rs next.
 			self
@@ -1459,7 +1483,7 @@ _test_fetchTuplesFromPostgresForTupleClassName: aSymbol
 		deny: (assoc := System myUserProfile resolveSymbol: aSymbol) identical: nil;
 		assert: (aTupleClass := assoc value) isBehavior.
 	cmdStr := 'select * from ' , self class widgetTableName.
-	
+
 	[self
 		assert: (rs := self connection execute: cmdStr tupleClass: aTupleClass) class equals: GsPostgresReadStream ;
 		_test_fetchTuplesFromPostgresForTupleClass: aTupleClass readStream: rs .
@@ -1547,7 +1571,7 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		begin ;
 		assert: self inTransaction ;
 		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws hasUnflushedData ; 
+		assert: ws hasUnflushedData ;
 		assert: self inTransaction ;
 		commit ;
 		deny: self inTransaction ;
@@ -1577,7 +1601,7 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		assert: (self hasWriteStream: ws);
 		deny: ws hasUnflushedData ;
 		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws hasUnflushedData ; 
+		assert: ws hasUnflushedData ;
 		deny: self inTransaction ;
 		assert: ws flush identical: ws ;
 		deny: ws hasUnflushedData ;
@@ -1608,7 +1632,7 @@ _test_insertUpdateDeleteTuplesFromPostgresForTupleClassName: aSymbol
 		begin ;
 		assert: self inTransaction ;
 		assert: (ws nextPutAll: objs) identical: ws;
-		assert: ws hasUnflushedData ; 
+		assert: ws hasUnflushedData ;
 		assert: self inTransaction ;
 		commit ;
 		deny: self inTransaction ;
@@ -1727,3 +1751,67 @@ _test_TwoByteString: cls
 		gsUpdateBlock: updateBlock.
 	^self
 %
+! ------------------- Remove existing behavior from WidgetWithStringsOldColumnMap
+removeAllMethods WidgetWithStringsOldColumnMap
+removeAllClassMethods WidgetWithStringsOldColumnMap
+! ------------------- Class methods for WidgetWithStringsOldColumnMap
+category: 'Posgres Support'
+classmethod: WidgetWithStringsOldColumnMap
+rdbColumnMapping
+
+^ Array new
+	add: (Array with: 'id' with: 'id' with: 'id' with: 'id:') ;
+	add: (Array with: 'last_update' with: 'lastUpdate' with: 'lastUpdate' with: 'lastUpdate:') ;
+	add: (Array with: 'last_update_notz' with: 'lastUpdateNoTz' with: 'lastUpdateNoTz' with: 'lastUpdateNoTz:') ;
+	add: (Array with: 'is_active' with: 'isActive' with: 'isActive' with: 'isActive:') ;
+	add: (Array with: 'date' with: 'activeDate' with: 'activeDate' with: 'activeDate:'  ) ;
+	add: (Array with: 'time' with: 'activeTime' with: 'activeTime' with: 'activeTime:') ;
+	add: (Array with: 'name_sb' with: 'nameSb' with: 'nameSb' with: 'nameSb:') ;
+	add: (Array with: 'name_db' with: 'nameDb' with: 'nameDb' with: 'nameDb:') ;
+	add: (Array with: 'name_qb' with: 'nameQb' with: 'nameQb' with: 'nameQb:');
+	add: (Array with: 'balance' with: 'balance' with: 'balance' with: 'balance:' ) ;
+	add: (Array with: 'encrypted_data' with: 'encryptedData' with: 'encryptedData' with: 'encryptedData:');
+	yourself
+%
+category: 'Posgres Support'
+classmethod: WidgetWithStringsOldColumnMap
+rdbPrimaryKeyMaps
+
+
+^ Array new
+	add: (Array with: 'id' with: 'id' with: 'id' with: 'id:') ;
+	yourself
+%
+! ------------------- Instance methods for WidgetWithStringsOldColumnMap
+! ------------------- Remove existing behavior from WidgetWithUnicodeOldColumnMap
+removeAllMethods WidgetWithUnicodeOldColumnMap
+removeAllClassMethods WidgetWithUnicodeOldColumnMap
+! ------------------- Class methods for WidgetWithUnicodeOldColumnMap
+category: 'Postgres Support'
+classmethod: WidgetWithUnicodeOldColumnMap
+rdbColumnMapping
+
+^ Array new
+	add: (Array with: 'id' with: 'id' with: 'id' with: 'id:') ;
+	add: (Array with: 'last_update' with: 'lastUpdate' with: 'lastUpdate' with: 'lastUpdate:') ;
+	add: (Array with: 'last_update_notz' with: 'lastUpdateNoTz' with: 'lastUpdateNoTz' with: 'lastUpdateNoTz:') ;
+	add: (Array with: 'is_active' with: 'isActive' with: 'isActive' with: 'isActive:') ;
+	add: (Array with: 'date' with: 'activeDate' with: 'activeDate' with: 'activeDate:'  ) ;
+	add: (Array with: 'time' with: 'activeTime' with: 'activeTime' with: 'activeTime:' ) ;
+	add: (Array with: 'name_sb' with: 'nameSb' with: 'nameSb' with: 'nameSb:' ) ;
+	add: (Array with: 'name_db' with: 'nameDb' with: 'nameDb' with: 'nameDb:' ) ;
+	add: (Array with: 'name_qb' with: 'nameQb' with: 'nameQb' with: 'nameQb:' );
+	add: (Array with: 'balance' with: 'balance' with: 'balance' with: 'balance:' ) ;
+	add: (Array with: 'encrypted_data' with: 'encryptedData' with: 'encryptedData' with: 'encryptedData:');
+	yourself
+%
+category: 'Postgres Support'
+classmethod: WidgetWithUnicodeOldColumnMap
+rdbPrimaryKeyMaps
+
+
+^ Array new
+	add: (Array with: 'id' with: 'id' with: 'id' with: 'id:') ;
+	yourself
+%
+! ------------------- Instance methods for WidgetWithUnicodeOldColumnMap

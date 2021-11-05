@@ -178,9 +178,8 @@ set compile_env: 0
 ! ------------------- Class definition for GsPostgresColumnMapEntry
 expectvalue /Class
 doit
-Object subclass: 'GsPostgresColumnMapEntry'
-  instVarNames: #( columnName instVarName getMethodSelector
-                    setMethodSelector instVarClass)
+Array subclass: 'GsPostgresColumnMapEntry'
+  instVarNames: #()
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()
@@ -191,15 +190,19 @@ Object subclass: 'GsPostgresColumnMapEntry'
 expectvalue /Class
 doit
 GsPostgresColumnMapEntry comment: 
-'GsPostgresColumnMapEntry is used to map a column to an instance variable:
+'GsPostgresColumnMapEntry is a classed used specify mappings between Postgres columns and instance variables of tuple objects.
+To be compatible with GemConnect for Oracle, it is a subclass of array so its instance variables can be a accessed either by
+getter/setter methods or by index using at: and at:put:, which is what is expected by older versions of GemConnect.
 
 Instance Variables:
-	columnName (String) Name of the column in Posgres
-	instVarName (String) - Name of the instance variable in GemStone
-	getMethodSelector (Symbol) - method selector to access (read) the instance variable
-	setMethodSelector (Symbol) - method selector to update (write) the instance variable
-	instVarClass (Class) - GemStone class of the instance variable or nil if the system default class for the column type is to be used.
-'
+	columnName (String) - name of the Postgres column to map to.
+	instVarName (String) - name of the instance variable in the tuple class
+	getMethodSelector (Symbol) - zero argument method selector used to return instVarName in the tuple object.
+	setMethodSelector (Symbol) - one argument method selector used to update instVarName in the tuple object.
+	instVarClass (Class) - preferred GemStone class of the inst var. nil means used the system default mapping based on the Postgres column type.
+
+
+	'
 %
 set compile_env: 0
 ! ------------------- Class definition for GsPostgresResult
