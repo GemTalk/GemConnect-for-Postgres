@@ -1561,6 +1561,12 @@ See System __sessionStateAt:
 
 	^ 25
 %
+category: 'Error Handling'
+classmethod: GsPostgresConnection
+signalInvalidColumnMap: connectObj map: columnMap
+
+(PostgresError new) args: { 'invalid column map' . connectObj . columnMap } ; signal
+%
 category: 'Private'
 classmethod: GsPostgresConnection
 _allPostgresConnections
@@ -1599,6 +1605,38 @@ Key: aGsPostgresConnection
 Value: Array of keys in in namedConnectionDictionary for aGsPostgresConnection"
 
 ^ self getPostgresSessionState at: 3
+%
+category: 'Error Handling'
+classmethod: GsPostgresConnection
+_signalBadColumnMap: connectObj column: badColumn
+
+"GsPostgresConnection _signalBadColumnMap: #foo column: #bar"
+
+(PostgresError new) args: { 'bad column map' . connectObj . badColumn } ; signal
+%
+category: 'Error Handling'
+classmethod: GsPostgresConnection
+_signalBadConnCacheName: connectObj name: badKey
+
+(PostgresError new) args: { 'bad connection cache name' . connectObj . badKey } ; signal
+%
+category: 'Error Handling'
+classmethod: GsPostgresConnection
+_signalNoColumnMap: connectObj tupleClass: tupleClass
+
+(PostgresError new) args: { 'no  column map' . connectObj . tupleClass } ; signal
+%
+category: 'Error Handling'
+classmethod: GsPostgresConnection
+_signalNoPrimaryKeyMap: connectObj tupleClass: tupleClass
+
+(PostgresError new) args: { 'no  primary key map' . connectObj . tupleClass } ; signal
+%
+category: 'Error Handling'
+classmethod: GsPostgresConnection
+_signalNoTableName: connectObj tupleClass: tupleClass
+
+(PostgresError new) args: { 'no  table name' . connectObj . tupleClass } ; signal
 %
 category: 'Private'
 classmethod: GsPostgresConnection
