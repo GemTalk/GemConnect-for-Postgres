@@ -3051,7 +3051,7 @@ category: 'Defaults'
 classmethod: GsPostgresColumnMapEntry
 instVarSize
 
-^5
+^4
 %
 category: 'Instance Creation'
 classmethod: GsPostgresColumnMapEntry
@@ -3123,14 +3123,12 @@ getMethodSelector: newValue
 category: 'Accessing'
 method: GsPostgresColumnMapEntry
 instVarClass
-
-^self at: 5
+	^instVarClass
 %
 category: 'Updating'
 method: GsPostgresColumnMapEntry
 instVarClass: newValue
-
-	self at: 5 put: newValue
+	instVarClass := newValue
 %
 category: 'Accessing'
 method: GsPostgresColumnMapEntry
@@ -3828,9 +3826,9 @@ category: 'Private'
 method: GsPostgresResult
 getPreferredClassForColumnMapEntry: entry
 
-^ entry size > 4
-	 ifTrue: [ entry at: 5 ] "entry has a preferred class, use it"
-	 ifFalse: [ nil ]		"old style entry is array of 4 elements, use nil"
+^ (entry isKindOf: GsPostgresColumnMapEntry)
+	 ifTrue: [ entry instVarClass ] "GsPostgresColumnMapEntry has a preferred class, use it"
+	 ifFalse: [ nil ]				"old style entry is array of 4 elements, use default class mapping"
 %
 category: 'Initialize'
 method: GsPostgresResult

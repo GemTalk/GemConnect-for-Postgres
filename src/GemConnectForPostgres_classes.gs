@@ -179,7 +179,7 @@ set compile_env: 0
 expectvalue /Class
 doit
 Array subclass: 'GsPostgresColumnMapEntry'
-  instVarNames: #()
+  instVarNames: #( instVarClass)
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()
