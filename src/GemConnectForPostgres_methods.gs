@@ -313,7 +313,7 @@ executePreparedWith: aTupleObject
 		do:
 			[:n |
 			| getter obj |
-			getter := ((cMap at: n) at: 3). "getMethodSelector, getter selector, a Symbol"
+			getter := GsPostgresColumnMapEntry getterSelectorForEntry: (cMap at: n) . "getMethodSelector, getter selector, a Symbol"
 			obj := aTupleObject perform: getter.	"Fetch the object from the tuple"
 			params add: (cls postgresStringForObject: obj escaped: false )	"Convert to postgres string"].
 	keyMap notNil
@@ -322,7 +322,7 @@ executePreparedWith: aTupleObject
 				do:
 					[:n |
 					| getter obj |
-					getter := (keyMap at: n) at: 3.	"getter selector, a Symbol"
+					getter := GsPostgresColumnMapEntry getterSelectorForEntry: (keyMap at: n).	"getter selector, a Symbol"
 					obj := aTupleObject perform: getter.	"Fetch the object from the tuple"
 					params add: (cls postgresStringForObject: obj escaped: false)	"Convert to postgres string"]].
 	^self conn executePreparedStatementWithName: self preparedStatementName
@@ -3049,6 +3049,18 @@ defaultSetSelectorForInstVar: anIv
 %
 category: 'Defaults'
 classmethod: GsPostgresColumnMapEntry
+getterSelectorForEntry: entry
+
+"Entry may be an instance of Array or GsPostgresColumnMapEntry.
+and if Array, it may have a size less than 3. If either is true, answer the default getter 
+method for the inst var name."
+
+^ ((entry size < 3) or:[ nil == (entry at: 3)])
+  	ifTrue:[self defaultGetSelectorForInstVar: (entry at: 2) ]
+ 	 ifFalse:[ entry at: 3 ]
+%
+category: 'Defaults'
+classmethod: GsPostgresColumnMapEntry
 instVarSize
 
 ^4
@@ -3094,6 +3106,18 @@ newForColumn: colName instVar: ivName instVarClass: aClass
 		getSelector: (self defaultGetSelectorForInstVar: ivName)
 		setSelector: (self defaultSetSelectorForInstVar: ivName)
 		instVarClass: aClass
+%
+category: 'Defaults'
+classmethod: GsPostgresColumnMapEntry
+setterSelectorForEntry: entry
+
+"Entry may be an instance of Array or GsPostgresColumnMapEntry.
+and if Array, it may have a size less than 3. If either is true, answer the default setter 
+method for the inst var name."
+
+^ ((entry size < 4) or:[ nil == (entry at: 4)])
+  	ifTrue:[self defaultSetSelectorForInstVar: (entry at: 2) ]
+ 	 ifFalse:[ entry at: 4 ]
 %
 ! ------------------- Instance methods for GsPostgresColumnMapEntry
 category: 'Accessing'
@@ -3805,7 +3829,7 @@ method: GsPostgresResult
 fetchDataInto: tupleInst fromRow: rowInt usingColumnMap: colMapEntry
 	"Private. Do not call directly unless you know what you're doing."
 
-	tupleInst perform: (colMapEntry at: 4) "setMethodSelector"
+	tupleInst perform: (GsPostgresColumnMapEntry setterSelectorForEntry: colMapEntry) "setMethodSelector"
 		with: (self
 				objectAtRow: rowInt
 				columnName: (colMapEntry at: 1) "columnName"

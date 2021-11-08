@@ -1380,8 +1380,7 @@ validateTupleObject: obj withNewCollMap: newMap
 	newMap do:
 			[:entry |
 			| iv |
-			"self assert: (entry isMemberOf: GsPostgresColumnMapEntry)."
-			iv := obj perform: entry getMethodSelector.
+			iv := obj perform: (GsPostgresColumnMapEntry getterSelectorForEntry: entry).
 			self assert: iv class identical: entry instVarClass]
 %
 category: 'Tests'
@@ -1394,7 +1393,7 @@ validateTupleObject: obj withOldCollMap: oldMap
 			[:entry |
 			| iv |
 			self assert: (entry isMemberOf: Array).
-			iv := obj perform: (entry at: 3) "getMethodSelector" ]
+			iv := obj perform: (GsPostgresColumnMapEntry getterSelectorForEntry: entry) "getMethodSelector" ]
 %
 category: 'Tests (private)'
 method: PostgresTestCase
@@ -1760,13 +1759,13 @@ classmethod: WidgetWithStringsOldColumnMap
 rdbColumnMapping
 
 ^ Array new
-	add: (Array with: 'id' with: 'id' with: 'id' with: 'id:') ;
-	add: (Array with: 'last_update' with: 'lastUpdate' with: 'lastUpdate' with: 'lastUpdate:') ;
+	add: (Array with: 'id' with: 'id') ; "2 element case"
+	add: (Array with: 'last_update' with: 'lastUpdate') ; "2 element case"
 	add: (Array with: 'last_update_notz' with: 'lastUpdateNoTz' with: 'lastUpdateNoTz' with: 'lastUpdateNoTz:') ;
 	add: (Array with: 'is_active' with: 'isActive' with: 'isActive' with: 'isActive:') ;
 	add: (Array with: 'date' with: 'activeDate' with: 'activeDate' with: 'activeDate:'  ) ;
 	add: (Array with: 'time' with: 'activeTime' with: 'activeTime' with: 'activeTime:') ;
-	add: (Array with: 'name_sb' with: 'nameSb' with: 'nameSb' with: 'nameSb:') ;
+	add: (Array with: 'name_sb' with: 'nameSb' with: 'nameSb' ) ; "3 element case"
 	add: (Array with: 'name_db' with: 'nameDb' with: 'nameDb' with: 'nameDb:') ;
 	add: (Array with: 'name_qb' with: 'nameQb' with: 'nameQb' with: 'nameQb:');
 	add: (Array with: 'balance' with: 'balance' with: 'balance' with: 'balance:' ) ;
@@ -1779,7 +1778,7 @@ rdbPrimaryKeyMaps
 
 
 ^ Array new
-	add: (Array with: 'id' with: 'id' with: 'id' with: 'id:') ;
+	add: (Array with: 'id' with: 'id') ; "2 element case"
 	yourself
 %
 ! ------------------- Instance methods for WidgetWithStringsOldColumnMap
@@ -1792,13 +1791,13 @@ classmethod: WidgetWithUnicodeOldColumnMap
 rdbColumnMapping
 
 ^ Array new
-	add: (Array with: 'id' with: 'id' with: 'id' with: 'id:') ;
-	add: (Array with: 'last_update' with: 'lastUpdate' with: 'lastUpdate' with: 'lastUpdate:') ;
+	add: (Array with: 'id' with: 'id') ; "2 element case"
+	add: (Array with: 'last_update' with: 'lastUpdate') ; "2 element case"
 	add: (Array with: 'last_update_notz' with: 'lastUpdateNoTz' with: 'lastUpdateNoTz' with: 'lastUpdateNoTz:') ;
 	add: (Array with: 'is_active' with: 'isActive' with: 'isActive' with: 'isActive:') ;
 	add: (Array with: 'date' with: 'activeDate' with: 'activeDate' with: 'activeDate:'  ) ;
 	add: (Array with: 'time' with: 'activeTime' with: 'activeTime' with: 'activeTime:' ) ;
-	add: (Array with: 'name_sb' with: 'nameSb' with: 'nameSb' with: 'nameSb:' ) ;
+	add: (Array with: 'name_sb' with: 'nameSb' with: 'nameSb' ) ; "3 element case"
 	add: (Array with: 'name_db' with: 'nameDb' with: 'nameDb' with: 'nameDb:' ) ;
 	add: (Array with: 'name_qb' with: 'nameQb' with: 'nameQb' with: 'nameQb:' );
 	add: (Array with: 'balance' with: 'balance' with: 'balance' with: 'balance:' ) ;
@@ -1811,7 +1810,7 @@ rdbPrimaryKeyMaps
 
 
 ^ Array new
-	add: (Array with: 'id' with: 'id' with: 'id' with: 'id:') ;
+	add: (Array with: 'id' with: 'id' ) ;
 	yourself
 %
 ! ------------------- Instance methods for WidgetWithUnicodeOldColumnMap
