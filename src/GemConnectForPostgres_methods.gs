@@ -195,10 +195,18 @@ category: 'Converting'
 classmethod: GsPostgresWriteStream
 postgresStringForObject: anObject escaped: isEscaped
 
-| arrayOrNil x |
-^ (arrayOrNil := ClassToPostgresStringTable at: anObject class otherwise: nil)
-	ifNil:[ isEscaped ifTrue:[ anObject asString quoted ] ifFalse:[ anObject asString ]]
-	ifNotNil:[ x := arrayOrNil first perform: arrayOrNil last with: anObject with: isEscaped ] "First element is receiver, second element is selector, arg is anObject"
+	| arrayOrNil x |
+	^anObject
+		ifNil: [ 'NULL' ] "do not quote NULL ! "
+		ifNotNil: 
+			[(arrayOrNil := ClassToPostgresStringTable at: anObject class otherwise: nil)
+				ifNil: 
+					[isEscaped ifTrue: [anObject asString quoted] ifFalse: [anObject asString]]
+				ifNotNil: 
+					[x := arrayOrNil first
+								perform: arrayOrNil last
+								with: anObject
+								with: isEscaped]	"First element is receiver, second element is selector, arg is anObject"]
 %
 category: 'Converting'
 classmethod: GsPostgresWriteStream
@@ -527,6 +535,7 @@ PLEASE keep in alphabetical order!"
 	#'PQfsize' .
 	#'PQftablecol' .
 	#'PQftype' .
+	#'PQgetisnull' .
 	#'PQgetlength' .
 	#'PQgetvalue' .
 	#'PQlibVersion' .
@@ -776,6 +785,11 @@ initialize_PQftype
 %
 category: 'Function Initializers'
 method: GsLibpq
+initialize_PQgetisnull
+	self initializeForFunctionNamed: #PQgetisnull result: #'int32' args: #(#'ptr' #'int32' #'int32')
+%
+category: 'Function Initializers'
+method: GsLibpq
 initialize_PQgetlength
 	self initializeForFunctionNamed: #PQgetlength result: #'int32' args: #(#'ptr' #'int32' #'int32')
 %
@@ -998,6 +1012,12 @@ method: GsLibpq
 PQftype: aPqResultCptr fieldNum: anInt
 
 ^ (self calloutTable at: #PQftype) callWith: { aPqResultCptr . anInt }
+%
+category: 'Postgres Callouts'
+method: GsLibpq
+PQgetisnull: aPqResultCptr row: rowInt column: columnInt
+
+^ (self calloutTable at: #PQgetisnull) callWith: { aPqResultCptr . rowInt . columnInt }
 %
 category: 'Postgres Callouts'
 method: GsLibpq
@@ -3927,7 +3947,7 @@ the default class mapping of Postgres type (OID) to GemStone class is used to cr
 
 	| obj cls |
 	(obj := self primTupleAtRow: rowInt column: columnInt) size == 0
-		ifTrue: [^''].	"Early exit for empty string case"
+		ifTrue: [^obj ].	"Early exit for specials (nil or SmallInteger) or empty string cases"
 	cls := aClassOrNil ifNil: [self defaultTypeForColumn: columnInt].
 
 	"If there's a class to map to, create a new object of that class. Otherwise return the one we have."
@@ -4077,7 +4097,13 @@ primTupleAtRow: rowInt column: columnInt
 "Private. Do not call directly unless you know what you're doing.
 Convert from 1-based Smalltalk offset to 0-based C offset."
 
-^ self libpq PQgetvalue: pqResultCptr row: (rowInt - 1) column: (columnInt - 1)
+| row col x |
+row := rowInt - 1.
+col := columnInt - 1.
+"Return nil for Postgres NULL"
+^(1 == (x := self libpq PQgetisnull: pqResultCptr row: row column: col))
+	ifTrue:[ nil ]
+	ifFalse:[self libpq PQgetvalue: pqResultCptr row: row column: col ]
 %
 category: 'Private'
 method: GsPostgresResult

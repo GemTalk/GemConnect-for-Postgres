@@ -1181,6 +1181,30 @@ test_DoubleByteString
 %
 category: 'Tests'
 method: PostgresTestCase
+test_emptyString
+
+	| pgType tableName str rs oc obj |
+	tableName := 'empty_string_table'.
+	pgType := 'varchar(20)'.
+	
+	[self
+		dropTableNamed: tableName;
+		createTableNamed: tableName withColumnType: pgType;
+		assert: (str := GsPostgresWriteStream postgresStringForObject: String new
+							escaped: true) equals: '' quoted ;
+		insertValue: str intoTable: tableName;
+		assert: (rs := self selectAllFromTable: tableName) class
+			identical: GsPostgresReadStream;
+		assert: (oc := rs next) class identical: OrderedCollection;
+		assert: oc size identical: 1;
+		assert: (obj := oc first) equals: String new ]
+			ensure: 
+				[rs ifNotNil: [rs free].
+				self dropTableNamed: tableName].
+	^self
+%
+category: 'Tests'
+method: PostgresTestCase
 test_execute
 
 	|  rs obj |
@@ -1269,6 +1293,30 @@ test_LargeInteger
 		withGsClass: cls
 		gsCreateBlock: createBlock
 		gsUpdateBlock: updateBlock.
+	^self
+%
+category: 'Tests'
+method: PostgresTestCase
+test_null
+
+	| pgType tableName str rs oc obj |
+	tableName := 'null_table'.
+	pgType := 'varchar(20)'.
+	
+	[self
+		dropTableNamed: tableName;
+		createTableNamed: tableName withColumnType: pgType;
+		assert: (str := GsPostgresWriteStream postgresStringForObject: nil
+							escaped: true) equals: 'NULL' ;
+		insertValue: str intoTable: tableName;
+		assert: (rs := self selectAllFromTable: tableName) class
+			identical: GsPostgresReadStream;
+		assert: (oc := rs next) class identical: OrderedCollection;
+		assert: oc size identical: 1;
+		assert: (obj := oc first) identical: nil ]
+			ensure: 
+				[rs ifNotNil: [rs free].
+				self dropTableNamed: tableName].
 	^self
 %
 category: 'Tests'
