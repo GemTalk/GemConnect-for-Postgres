@@ -3285,7 +3285,7 @@ createInstanceOf: aClass fromPostgresString: aString
 "Create a new instance of aClass from Postgres string aString. Raise an error if the conversion could not be performed."
 
 	| array |
-	array := ClassAndSelctorTable at: aClass otherwise: nil.
+	array := ClassAndSelectorTable at: aClass otherwise: nil.
 	^array
 		ifNil: [aClass fromString: aString]
 		ifNotNil: [array first perform: (array at: 2) with: aString]
@@ -3436,16 +3436,16 @@ classmethod: GsPostgresResult
 initialize
 
 "GsPostgresResult initialize"
-^ self initializeExecStatusTable ; initializeFieldTypeTable ; initializeClassAndSelctorTable
+^ self initializeExecStatusTable ; initializeFieldTypeTable ; initializeClassAndSelectorTable
 %
 category: 'Class Initialization'
 classmethod: GsPostgresResult
-initializeClassAndSelctorTable
-	"GsPostgresResult initializeClassAndSelctorTable"
+initializeClassAndSelectorTable
+	"GsPostgresResult initializeClassAndSelectorTable"
 
 	| blk |
-	ClassAndSelctorTable := IdentityKeyValueDictionary new.
-	ClassAndSelctorTable
+	ClassAndSelectorTable := IdentityKeyValueDictionary new.
+	ClassAndSelectorTable
 		at: Boolean put: (Array with: self with: #booleanFromPostgresString:);
 		at: DateAndTime put: (Array with: self with: #dateAndTimeFromTimestampTz:);
 		at: DateTime put: (Array with: self with: #dateTimeFromTimestampDiscardTz:);
@@ -3470,7 +3470,7 @@ initializeClassAndSelctorTable
 			| cls |
 			(cls := Globals at: sym otherwise: nil)
 				ifNotNil:
-					[ClassAndSelctorTable at: cls put: (ClassAndSelctorTable at: existingCls)]].
+					[ClassAndSelectorTable at: cls put: (ClassAndSelectorTable at: existingCls)]].
 	blk
 		value: #SmallDateAndTime value: DateAndTime;
 		value: #SmallDate value: Date;

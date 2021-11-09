@@ -212,7 +212,7 @@ Object subclass: 'GsPostgresResult'
   instVarNames: #( libpq pqResultCptr numRows
                     numColumns pgColumnTypes columnTypes columnNameMap
                     tupleClass sql columnMapEntries unicodeStrings)
-  classVars: #( ClassAndSelctorTable ExecStatusTable FieldTypeTable)
+  classVars: #( ClassAndSelectorTable ExecStatusTable FieldTypeTable)
   classInstVars: #()
   poolDictionaries: #()
   inDictionary: (UserGlobals at: #GcfpInstallDict)
@@ -242,7 +242,7 @@ Instance Variables:
 		false means multibyte strings are returned as DoubleByteString and QuadByteString objects by default.
 
 Class Variables:
-	ClassAndSelctorTable (IdentityKeyValueDictionary) - keys: type (Class). values: (Array) arguments used to #perform: the conversion from a
+	ClassAndSelectorTable (IdentityKeyValueDictionary) - keys: type (Class). values: (Array) arguments used to #perform: the conversion from a
 		Postgres string to the type as follows:
 			array at: 1 (Class) - receiver of the #perform:with: message, normally GsPostgresResult (class)
 			array at: 2 (Symbol) - one argument method selector used to perform the conversion.
