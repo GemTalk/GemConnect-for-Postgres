@@ -112,11 +112,11 @@ classmethod: GsPostgresWriteStream
 initializeClassToPostgresStringTable
 	"GsPostgresWriteStream initializeClassToPostgresStringTable"
 
-	| qbMethSel blk dbMethSel |
+	| qbMethSel blk dbMethSel table obsDt |
 	qbMethSel := Array with: self with: #quadByteStringToPostgresString:escaped: .
 	dbMethSel := Array with: self with: #doubleByteStringToPostgresString:escaped: .
-	ClassToPostgresStringTable := IdentityKeyValueDictionary new.
-	ClassToPostgresStringTable
+	 table := ClassToPostgresStringTable :=IdentityKeyValueDictionary new.
+	table
 		at: DateAndTime put: (Array with: self with: #dateAndTimeToPostgresString:escaped: );
 		at: DateTime put: (Array with: self with: #dateTimeToPostgresString:escaped:);
 		at: DoubleByteString put: dbMethSel;
@@ -130,22 +130,42 @@ initializeClassToPostgresStringTable
 		at: Boolean put: (Array with: self with: #booleanToPostgresString:escaped: ) ;
 		at: ScaledDecimal put: (Array with: self with: #scaledDecimalToPostgresString:escaped: ) ;
 		at: Float put: (Array with: self with: #floatToPostgresString:escaped: ) .
-	"Add new special classes if this GS version has them"
-	blk :=
-			[:sym :existingCls |
-			| cls |
-			(cls := Globals at: sym otherwise: nil)
-				ifNotNil:
-					[ClassToPostgresStringTable at: cls
-						put: (ClassToPostgresStringTable at: existingCls)]].
-	blk
-		value: #SmallDateAndTime value: DateAndTime;
-		value: #SmallDate value: Date;
-		value: #SmallTime value: Time ;
-		value: #SmallScaledDecimal value: ScaledDecimal ;
-		value: #SmallDouble value: Float .
 
+	"Now add new special classes and customer subclasses"
+	blk := [:cls| cls allSubclasses do:[:subclass| self makeMappingForSubclass: subclass theSameAs: cls ]] .
+
+	blk 	value: DateAndTime ;
+		value: DateTime  ;
+		value: Date  ;
+		value: Time  ;
+		value: ScaledDecimal ;
+		value: Float .
+"Kick out ObsoleteDateTime50"
+	obsDt := (System myUserProfile resolveSymbol: #ObsoleteDateTime50) value.
+	obsDt ifNotNil:[ table removeKey: obsDt otherwise: nil].
 	^self
+%
+category: 'Class Mapping'
+classmethod: GsPostgresWriteStream
+makeMappingForSubclass: aSubclass theSameAs: aSuperclass
+
+"Add a mapping for writing aSubclass to Postgres in the same manner as aSuperclass is written to Postgres.
+The class aSuperclass must already have a default mapping for Postgres.
+For example if a new subclass of DateTime called MyDateTime is added AFTER GemConnect for Postgres is installed,
+execute this code to add the mapping:
+
+GsPostgresWriteStream makeMappingForSubclass: MyDateTime  theSameAs: DateTime
+
+Note: subclasses which are present when GemConnect for Postgres is installed are automatically mapped
+at installation time. Examine senders of this method to see where that is done."
+
+
+aSubclass isBehavior ifFalse:[ ^ ArgumentError signal:'expected a Class' ] .
+aSuperclass isBehavior ifFalse:[ ^ ArgumentError signal:'expected a Class' ] .
+aSubclass validateSubclassOf: aSuperclass .
+ClassToPostgresStringTable at: aSubclass put: (ClassToPostgresStringTable at: aSuperclass).
+^ self
+
 %
 category: 'Converting'
 classmethod: GsPostgresWriteStream
