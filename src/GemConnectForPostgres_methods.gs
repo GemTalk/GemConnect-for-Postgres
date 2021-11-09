@@ -3764,6 +3764,24 @@ raiseErrorWithMessage: msg
 %
 category: 'Converting'
 classmethod: GsPostgresResult
+setDefaultClassForTimestamp: aClass
+
+"Change the default class mapping for Postgres timestamps to by aClass which
+ must be DateTime, DateAndTime, or a subclass."
+
+"GsPostgresResult setDefaultClassForTimestamp: DateTime"
+
+	aClass isBehavior ifFalse: [^ArgumentError signal: 'expected a Class'].
+	((aClass isSubclassOf: DateTime) or: [aClass isSubclassOf: DateAndTime])
+		ifFalse: 
+			[^ArgumentError signal: 'expected a subclass of DateTime or DateAndTime'].
+	FieldTypeTable
+		at: 1114 put: aClass ; "TIMESTAMPOID"
+		at: 1184 put: aClass  ."TIMESTAMPTZOID"
+^ self
+%
+category: 'Converting'
+classmethod: GsPostgresResult
 symbolForResultStatus: aStatus
 
 "Convert a Postgres result status to a Symbol describing said status.
@@ -3831,10 +3849,10 @@ columnNameMap: newValue
 category: 'Accessing Fields'
 method: GsPostgresResult
 columnNumberForName: cName
-
-"Answer a SmallInteger which is the index of the column with name cName The first column has an index of 1."
-^ self columnNameMap at: cName asSymbol otherwise: -1
-
+	"Answer a SmallInteger which is the index of the column with name cName The first column has an index of 1."
+	"Column names are lowercase by default in Postgres, so try that on failure"
+	^self columnNameMap at: cName asSymbol
+		ifAbsent: [self columnNameMap at: cName asLowercase asSymbol otherwise: -1]
 %
 category: 'Accessing'
 method: GsPostgresResult

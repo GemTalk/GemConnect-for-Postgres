@@ -1137,7 +1137,8 @@ test_DateAndTime
 						_test_pgType: pgType
 						withGsClass: cls
 						gsCreateBlock: blk
-						gsUpdateBlock: updateBlock]].
+						gsUpdateBlock: updateBlock
+						overrideClass: true]].
 	^self
 %
 category: 'Tests'
