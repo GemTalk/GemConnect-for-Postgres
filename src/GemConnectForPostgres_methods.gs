@@ -290,6 +290,33 @@ zeroPadLeft: aString toDigits: anInt
 	^result
 %
 ! ------------------- Instance methods for GsPostgresWriteStream
+category: 'Command Execution'
+method: GsPostgresWriteStream
+buildParametersFor: aTupleObject
+
+	| params cMap cls |
+	cls := self class.
+	self validateTupleObject: aTupleObject.
+	params := Array new.
+	cMap := self columnMap.
+	1 to: cMap size
+		do:
+			[:n |
+			| getter obj |
+			getter := GsPostgresColumnMapEntry getterSelectorForEntry: (cMap at: n) . "getMethodSelector, getter selector, a Symbol"
+			obj := aTupleObject perform: getter.	"Fetch the object from the tuple"
+			params add: (cls postgresStringForObject: obj escaped: false )	"Convert to postgres string"].
+	keyMap notNil
+		ifTrue:
+			[1 to: keyMap size
+				do:
+					[:n |
+					| getter obj |
+					getter := GsPostgresColumnMapEntry getterSelectorForEntry: (keyMap at: n).	"getter selector, a Symbol"
+					obj := aTupleObject perform: getter.	"Fetch the object from the tuple"
+					params add: (cls postgresStringForObject: obj escaped: false)	"Convert to postgres string"]].
+	^ params
+%
 category: 'Stream Operations'
 method: GsPostgresWriteStream
 clear
@@ -330,31 +357,9 @@ conn: newValue
 %
 category: 'Command Execution'
 method: GsPostgresWriteStream
-executePreparedWith: aTupleObject
+executePreparedWith: params
 
-	| params cMap cls |
-	cls := self class.
-	self validateTupleObject: aTupleObject.
-	params := Array new.
-	cMap := self columnMap.
-	1 to: cMap size
-		do:
-			[:n |
-			| getter obj |
-			getter := GsPostgresColumnMapEntry getterSelectorForEntry: (cMap at: n) . "getMethodSelector, getter selector, a Symbol"
-			obj := aTupleObject perform: getter.	"Fetch the object from the tuple"
-			params add: (cls postgresStringForObject: obj escaped: false )	"Convert to postgres string"].
-	keyMap notNil
-		ifTrue:
-			[1 to: keyMap size
-				do:
-					[:n |
-					| getter obj |
-					getter := GsPostgresColumnMapEntry getterSelectorForEntry: (keyMap at: n).	"getter selector, a Symbol"
-					obj := aTupleObject perform: getter.	"Fetch the object from the tuple"
-					params add: (cls postgresStringForObject: obj escaped: false)	"Convert to postgres string"]].
-	^self conn executePreparedStatementWithName: self preparedStatementName
-		parameters: params
+	^self conn executePreparedStatementWithName: self preparedStatementName parameters: params
 %
 category: 'Flushing'
 method: GsPostgresWriteStream
@@ -445,7 +450,7 @@ category: 'Stream Operations'
 method: GsPostgresWriteStream
 nextPut: tupleObj
 
-self collection add: tupleObj .
+self collection add: (self buildParametersFor: tupleObj) .
 self incrementPositionBy: 1 .
 ^ self
 %
@@ -453,7 +458,7 @@ category: 'Stream Operations'
 method: GsPostgresWriteStream
 nextPutAll: aCollection
 
-self collection addAll: aCollection .
+aCollection do:[:eachObj| self collection add: (self buildParametersFor: eachObj)].
 self incrementPositionBy: aCollection size .
 ^ self
 %
