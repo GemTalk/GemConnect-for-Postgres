@@ -218,11 +218,11 @@ postgresStringForObject: anObject escaped: isEscaped
 	| arrayOrNil x |
 	^anObject
 		ifNil: [ 'NULL' ] "do not quote NULL ! "
-		ifNotNil: 
+		ifNotNil:
 			[(arrayOrNil := ClassToPostgresStringTable at: anObject class otherwise: nil)
-				ifNil: 
+				ifNil:
 					[isEscaped ifTrue: [anObject asString quoted] ifFalse: [anObject asString]]
-				ifNotNil: 
+				ifNotNil:
 					[x := arrayOrNil first
 								perform: arrayOrNil last
 								with: anObject
@@ -3097,7 +3097,7 @@ classmethod: GsPostgresColumnMapEntry
 getterSelectorForEntry: entry
 
 "Entry may be an instance of Array or GsPostgresColumnMapEntry.
-and if Array, it may have a size less than 3. If either is true, answer the default getter 
+and if Array, it may have a size less than 3. If either is true, answer the default getter
 method for the inst var name."
 
 ^ ((entry size < 3) or:[ nil == (entry at: 3)])
@@ -3157,7 +3157,7 @@ classmethod: GsPostgresColumnMapEntry
 setterSelectorForEntry: entry
 
 "Entry may be an instance of Array or GsPostgresColumnMapEntry.
-and if Array, it may have a size less than 3. If either is true, answer the default setter 
+and if Array, it may have a size less than 3. If either is true, answer the default setter
 method for the inst var name."
 
 ^ ((entry size < 4) or:[ nil == (entry at: 4)])
@@ -3382,7 +3382,7 @@ category: 'Converting'
 classmethod: GsPostgresResult
 dateTimeFromTimestampDiscardTz: aString
 
-"Convert a Postgres timezone string to a DateTime object.
+"Convert a Postgres timestamp string to a DateTime object.
 
 *** WARNING ***
 There is no good way to convert a Postgres timezone offset (-07) to a GS timezone object.
@@ -3391,6 +3391,8 @@ to avoid this problem.
 *** WARNING ***
 
 GsPostgresResult dateTimeFromTimestampDiscardTz: '2017-08-25 04:50:12.222-07'
+GsPostgresResult dateTimeFromTimestampDiscardTz: '2017-08-25     '
+GsPostgresResult dateTimeFromTimestampDiscardTz: '2017-08-25'
 "
 
 	| rs year month day hour minute second ms tmp haveMs |
@@ -3399,6 +3401,9 @@ GsPostgresResult dateTimeFromTimestampDiscardTz: '2017-08-25 04:50:12.222-07'
 	year := (rs upTo: $-) asInteger.
 	month := (rs upTo: $-) asInteger.
 	day := (rs upTo: Character space) asInteger.
+	rs skipSeparators.
+	rs atEnd
+		ifTrue:[^ DateTime newWithYear: year month: month day: day hours: 0 minutes: 0 seconds: 0].
 	hour := (rs upTo: $:) asInteger.
 	minute := (rs upTo: $:) asInteger.
 	second := (rs upToAnyOf:
@@ -3762,18 +3767,34 @@ raiseErrorWithMessage: msg
 
 	^GsPostgresConnection errorClass signal: msg
 %
-category: 'Converting'
+category: 'Class Mapping'
+classmethod: GsPostgresResult
+setDefaultClassForDate: aClass
+
+"Change the default class mapping for Postgres date to aClass which
+ must be Date, DateTime, DateAndTime, or a subclass."
+
+"GsPostgresResult setDefaultClassForDate: DateTime"
+
+	aClass isBehavior ifFalse: [^ArgumentError signal: 'expected a Class'].
+	(((aClass isSubclassOf: DateTime) or: [aClass isSubclassOf: DateAndTime]) or:[ aClass isSubclassOf: Date])
+		ifFalse:
+			[^ArgumentError signal: 'expected a subclass of Date, DateTime or DateAndTime'].
+	FieldTypeTable at: 1082 put: aClass  ."DATEOID"
+^ self
+%
+category: 'Class Mapping'
 classmethod: GsPostgresResult
 setDefaultClassForTimestamp: aClass
 
-"Change the default class mapping for Postgres timestamps to by aClass which
+"Change the default class mapping for Postgres timestamps to aClass which
  must be DateTime, DateAndTime, or a subclass."
 
 "GsPostgresResult setDefaultClassForTimestamp: DateTime"
 
 	aClass isBehavior ifFalse: [^ArgumentError signal: 'expected a Class'].
 	((aClass isSubclassOf: DateTime) or: [aClass isSubclassOf: DateAndTime])
-		ifFalse: 
+		ifFalse:
 			[^ArgumentError signal: 'expected a subclass of DateTime or DateAndTime'].
 	FieldTypeTable
 		at: 1114 put: aClass ; "TIMESTAMPOID"

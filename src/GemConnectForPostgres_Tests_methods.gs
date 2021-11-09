@@ -1187,7 +1187,7 @@ test_emptyString
 	| pgType tableName str rs oc obj |
 	tableName := 'empty_string_table'.
 	pgType := 'varchar(20)'.
-	
+
 	[self
 		dropTableNamed: tableName;
 		createTableNamed: tableName withColumnType: pgType;
@@ -1199,7 +1199,7 @@ test_emptyString
 		assert: (oc := rs next) class identical: OrderedCollection;
 		assert: oc size identical: 1;
 		assert: (obj := oc first) equals: String new ]
-			ensure: 
+			ensure:
 				[rs ifNotNil: [rs free].
 				self dropTableNamed: tableName].
 	^self
@@ -1303,7 +1303,7 @@ test_null
 	| pgType tableName str rs oc obj |
 	tableName := 'null_table'.
 	pgType := 'varchar(20)'.
-	
+
 	[self
 		dropTableNamed: tableName;
 		createTableNamed: tableName withColumnType: pgType;
@@ -1315,7 +1315,7 @@ test_null
 		assert: (oc := rs next) class identical: OrderedCollection;
 		assert: oc size identical: 1;
 		assert: (obj := oc first) identical: nil ]
-			ensure: 
+			ensure:
 				[rs ifNotNil: [rs free].
 				self dropTableNamed: tableName].
 	^self
