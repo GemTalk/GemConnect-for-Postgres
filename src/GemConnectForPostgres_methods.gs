@@ -1354,7 +1354,7 @@ generateBindSQLValuesClause: colNames
  with bind variables. The given column name array is used to generate
  this values clause."
 
-   | valuesCl vals bindName |
+   | valuesCl vals |
 
    colNames _validateClass: Array.
    valuesCl := String new.
@@ -1566,7 +1566,7 @@ removeConnection: aGsPostgresConnection
 "Private. Do not call directly unless you know what you're doing."
 self _allPostgresConnections removeIfPresent: aGsPostgresConnection . "Remove from IdentitySet"
 (self allNamesForConnection: aGsPostgresConnection)  "Remove each name for this connection"
-	do:[:name| self _namedConnectionDictionary removeKey: name otherwise: nil ].
+	do:[:aName| self _namedConnectionDictionary removeKey: aName otherwise: nil ].
 "Remove entry from reverse dictionary, if any"
 self _namedConnectionReverseDictionary removeKey: aGsPostgresConnection otherwise: nil.
 self _streamsForConnectionDictionary removeKey: aGsPostgresConnection .
@@ -2924,7 +2924,7 @@ next: n into: aCollection startingAt: startIndex
 Return aCollection or a partial copy if less than
 n elements have been read."
 
-| max pos coll |
+| coll |
 coll := self next: n.
 aCollection
 	replaceFrom: startIndex
@@ -3343,7 +3343,7 @@ The Postgres timestamp string may or may not include the timezone.
 GsPostgresResult dateAndTimeFromTimestampTz: '2017-08-25 04:50:00-07'
 "
 
-	| rs year month day hour minute second tzoffset sign negate haveMicro micro |
+	| rs year month day hour minute second tzoffset negate micro |
 	negate := false.
 	tzoffset := 0.
 	rs := ReadStreamPortable on: aString.
@@ -3395,7 +3395,7 @@ GsPostgresResult dateTimeFromTimestampDiscardTz: '2017-08-25     '
 GsPostgresResult dateTimeFromTimestampDiscardTz: '2017-08-25'
 "
 
-	| rs year month day hour minute second ms tmp haveMs |
+	| rs year month day hour minute second ms haveMs |
 	haveMs := false.
 	rs := ReadStreamPortable on: aString.
 	year := (rs upTo: $-) asInteger.
@@ -4328,7 +4328,6 @@ If the receiver's tupleClass is not nil, tupleInst is assumed to be an instance 
 the selectors in the receiver's columnMapEntries objects are used to store the results into tupleInst.
 Returns tupleInst"
 
-	| result |
 	self tupleClass
 		ifNil:
 			[1 to: self numColumns
