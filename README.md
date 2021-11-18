@@ -3,11 +3,20 @@
 Postgres access via GemStone FFI
 
 ## Prerequisites
-Installation instructions assume that you have registered SSH Keys with your GitHub account. See [Connecting to GitHub with SSH](https://help.github.com/articles/connecting-to-github-with-ssh/) for more information.
 
-You must have git installed: [git setup](https://help.github.com/articles/set-up-git/)
+### User
+
+Download this project as a zip file and unzip it.
+
+### Developer
+
+If you wish to contribute to this project you should have git installed ([git setup](https://help.github.com/articles/set-up-git/)) and then fork the project to your GitHub account. You may then clone the project using HTTPS or SSH keys. See [Connecting to GitHub with SSH](https://help.github.com/articles/connecting-to-github-with-ssh/) for more information on SSH.
+
+### Postgres
 
 You must have Postgres installed. GCfP was built and tested on Linux using Postgres 11. Other versions of Postgres will probably work but might not.
+
+### GemStone/S 64 Bit
 
 You must have GemStone/64 version 3.6.2 or later installed and running.
 
@@ -62,32 +71,32 @@ ShrPcClientConnect got newClientId 9 newSlot 10
 [Info]: User ID: SystemUser
 [Info]: Repository: norm
 [Info]: Session ID: 5 login at 09/16/21 14:54:10.155 PDT
-[Info]: GCI Client Host: 
+[Info]: GCI Client Host:
 [Info]: Page server PID: -1
 [Info]: using libicu version 58.2
 [Info]: Loaded /export/moop3/users/normg/gs362_2/slow50/gs/product/lib/libicu.58.2.so
 [Info]: Gave this process preference for OOM killer: wrote to /proc/18819/oom_score_adj value 250
 [09/16/21 14:54:10.157 PDT]
-  gci login: currSession 1  linked session 
+  gci login: currSession 1  linked session
 successful login
-topaz 1> 
+topaz 1>
 ```
 5. Complete **either** step A **or** B, not both. Step C is optional.
 
-- A) Installing code into a new SymbolListDictionary:   
-To create and install in a new Symbol Dictionary named GemConnectForPostgres, input the install script install.topaz. 
+- A) Installing code into a new SymbolListDictionary:
+To create and install in a new Symbol Dictionary named GemConnectForPostgres, input the install script install.topaz.
 A log file named GemConnectForPostres.install.log will be created.
 ```
   topaz>input install.topaz
 ```
 
-- B) To install code into Globals:  
+- B) To install code into Globals:
   Input the install script install.into.globals.topaz. A log file named GemConnectForPostres.install.log will be created.
 ```
   topaz>input install.into.globals.topaz
 ```
 
-- C) (Optional) To install the unit tests:  
+- C) (Optional) To install the unit tests:
   Input the install script install.tests.topaz. A log file named GemConnectForPostres.install.tests.log will be created.
   Unit test classes will be installed in the same SymbolListDictionary as GemConnectForPostgres.
 ```
@@ -100,7 +109,7 @@ true
 topaz 1 +> errorcount
 0
 topaz 1 +> output pop
-topaz 1> 
+topaz 1>
 ```
 7. Quit out of topaz. You are finished the installation!
 
