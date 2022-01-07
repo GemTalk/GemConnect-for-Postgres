@@ -40,7 +40,8 @@ UserGlobals at: #GcfpPgConnSuperClass put: gsrdbconn .
 "File in GemConnect for Postgres"
 GsFileIn
   fromServerPath: 'GemConnectForPostgres_classes.gs' ;
-  fromServerPath: 'GemConnectForPostgres_methods.gs'.
+  fromServerPath: 'GemConnectForPostgres_methods.gs' ;
+  fromServerPath: 'Object_methods.gs'.
 
 "Initialize classes. Must resolve by name so this doit compiles."
 (dict at: #GsLibpq) libraryPath: pgLib .
