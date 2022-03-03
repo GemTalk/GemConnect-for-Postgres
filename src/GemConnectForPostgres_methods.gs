@@ -534,6 +534,82 @@ validateTupleObject: anObj
 removeAllMethods GsLibpq
 removeAllClassMethods GsLibpq
 ! ------------------- Class methods for GsLibpq
+category: 'Converting'
+classmethod: GsLibpq
+addUtf8Encoded: arrayOfStrings to: cByteArray
+
+"Special version of method 
+	CByteArray>>addUtf8Encoded: arrayOfStrings extraNullPointer: addExtraNull
+which adds a C NULL in cByteArray in place of the string NULL in arrayOfStrings.
+When a field is NULL, Postgres wants a C NULL, not the string NULL."
+
+	| arySize stringAddress stringOffset ptrOffset |
+	stringOffset := (arySize := arrayOfStrings size) * 8.
+	stringAddress := cByteArray memoryAddress + stringOffset.
+	ptrOffset := 0.
+	1 to: arySize
+		do: 
+			[:n |
+			| aString |
+			aString := arrayOfStrings at: n.
+			(self stringIsNull: aString)
+				ifTrue:  "No string to store, just store a C NULL for the char *"
+					[cByteArray int64At: ptrOffset put: 0.
+					ptrOffset := ptrOffset + 8]
+				ifFalse: 
+					[| sz |
+					sz := cByteArray
+								encodeUTF8From: aString
+								into: stringOffset
+								allowCodePointZero: false.
+					stringOffset := stringOffset + sz.
+					cByteArray uint8At: stringOffset put: 0. "NULL terminate the string"
+					stringOffset := stringOffset + 1.
+					cByteArray int64At: ptrOffset put: stringAddress.
+					ptrOffset := ptrOffset + 8.
+					stringAddress := stringAddress + (sz + 1)]].
+	^cByteArray
+%
+category: 'Converting'
+classmethod: GsLibpq
+buildCByteArrayFromArrayEncodeUtf8: arrayOfParams 
+
+"Special version of method 
+	CByteArray (C) >>fromArrayEncodeUtf8: arrayOfStrings extraNullPointer: addExtraNull
+which adds a C NULL in cByteArray in place of the string NULL in arrayOfStrings.
+When a field is NULL, Postgres wants a C NULL, not the string NULL."
+
+| result sz |
+sz := self computeSizeForCByteArrayFrom: arrayOfParams.
+result := CByteArray gcMalloc: sz.
+self addUtf8Encoded: arrayOfParams to: result.
+^ result
+%
+category: 'Converting'
+classmethod: GsLibpq
+computeSizeForCByteArrayFrom: arrayOfStrings
+
+"Special version of method 
+	CByteArray (C) >>computeSizeForArrayOfUtf8Encoded: arrayOfStrings extraNullPointer: extraNullBoolean
+which adds a C NULL in cByteArray in place of the string NULL in arrayOfStrings.
+When a field is NULL, Postgres wants a C NULL, not the string NULL."
+
+	| totalBytes sz numStrings |
+	totalBytes := 0.
+	numStrings := 0.
+	1 to: (sz := arrayOfStrings size)
+		do: 
+			[:n |
+			| str |
+			str := arrayOfStrings at: n.
+			(self stringIsNull: str)
+				ifFalse:  "This one will be sent as a Utf8 string, not a NULL"
+					[numStrings := numStrings + 1.
+					totalBytes := totalBytes + str sizeForEncodeAsUTF8]].
+	totalBytes := totalBytes + numStrings.	"one NUL terminating each encoded string."
+	totalBytes := totalBytes + (sz * 8).	"one pointer for each string and each NULL"
+	^totalBytes
+%
 category: 'Functions'
 classmethod: GsLibpq
 functionList
@@ -634,6 +710,12 @@ if possible. This method will invoke the C callout and pass the argument objects
 category "Postgres Callouts". See methods in category "Postgres Callouts" for examples.
 
 '
+%
+category: 'Converting'
+classmethod: GsLibpq
+stringIsNull: aByteObj
+
+^ (aByteObj charSize == 1) and:[ aByteObj = 'NULL']
 %
 ! ------------------- Instance methods for GsLibpq
 category: 'Private'
@@ -967,7 +1049,7 @@ PQexecParams:  cmdString numParams: numParms paramTypes: arrayOfInts1 paramValue
 
 | paramTypes paramValues paramLengths paramFormats |
 arrayOfInts1 ifNotNil:[ paramTypes := CByteArray fromArrayOfInt32: arrayOfInts1].
-arrayOfStrings ifNotNil:[ paramValues := CByteArray fromArrayEncodeUtf8: arrayOfStrings extraNullPointer: false ].
+arrayOfStrings ifNotNil:[ paramValues := self class buildCByteArrayFromArrayEncodeUtf8: arrayOfStrings ]. "Handle NULLs correctly"
 arrayOfInts2 ifNotNil:[ paramLengths := CByteArray fromArrayOfInt32: arrayOfInts2].
 arrayOfInts3 ifNotNil:[ paramFormats := CByteArray fromArrayOfInt32: arrayOfInts3].
 
@@ -979,7 +1061,7 @@ PQexecParams:  cmdString  paramTypes: arrayOfInts1 paramValues: arrayOfParams pa
 
 | paramTypes paramValues paramLengths paramFormats |
 arrayOfInts1 ifNotNil:[ paramTypes := CByteArray fromArrayOfInt32: arrayOfInts1].
-arrayOfParams ifNotNil:[ paramValues := CByteArray fromArrayEncodeUtf8: arrayOfParams extraNullPointer: false  ].
+arrayOfParams ifNotNil:[ paramValues := self class buildCByteArrayFromArrayEncodeUtf8: arrayOfParams ]. "Handle NULLs correctly"
 arrayOfInts2 ifNotNil:[ paramLengths := CByteArray fromArrayOfInt32: arrayOfInts2].
 arrayOfInts3 ifNotNil:[ paramFormats := CByteArray fromArrayOfInt32: arrayOfInts3].
 
@@ -990,7 +1072,7 @@ method: GsLibpq
 PQexecPrepared:  startementName paramValues: arrayOfParams paramLengths: arrayOfInts2 paramFormats: arrayOfInts3 resultFormat: formatInt on: pgConn
 
 |  paramValues paramLengths paramFormats |
-arrayOfParams ifNotNil:[ paramValues := CByteArray fromArrayEncodeUtf8: arrayOfParams extraNullPointer: false ].
+arrayOfParams ifNotNil:[ paramValues := self class buildCByteArrayFromArrayEncodeUtf8: arrayOfParams ]. "Handle NULLs correctly"
 arrayOfInts2 ifNotNil:[ paramLengths := CByteArray fromArrayOfInt32: arrayOfInts2].
 arrayOfInts3 ifNotNil:[ paramFormats := CByteArray fromArrayOfInt32: arrayOfInts3].
 

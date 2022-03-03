@@ -578,6 +578,29 @@ sqlForUpdateTable: aName oldValue: oldVal newValue: newVal
 
 ^ self sqlForUpdateTable: aName column: 'column1' oldValue: oldVal newValue: newVal
 %
+category: 'TestNull Table'
+classmethod: PostgresTestCase
+testNullTableColumnNames
+
+^
+{
+'exitcode' 
+}
+%
+category: 'TestNull Table'
+classmethod: PostgresTestCase
+testNullTableColumnTypes
+
+^
+{
+'BIGINT' 
+}
+%
+category: 'TestNull Table'
+classmethod: PostgresTestCase
+testNullTableName
+	^'testnull'
+%
 category: 'Widget Table'
 classmethod: PostgresTestCase
 widgetTableAllBalances
@@ -885,6 +908,20 @@ createTableNamed: aName withColumnType: aString
 %
 category: 'Setup'
 method: PostgresTestCase
+createTestNullTable
+	"Create an empty table in Postgres for testing tuple classes"
+
+	| tableName |
+	tableName := self class testNullTableName.
+	^self
+		dropTableNamed: tableName;
+		createTableNamed: tableName
+			columnNames: self class testNullTableColumnNames
+			columnTypes: self class testNullTableColumnTypes;
+		yourself
+%
+category: 'Setup'
+method: PostgresTestCase
 createWidgetTable
 	"Create an empty table in Postgres for testing tuple classes"
 
@@ -1055,6 +1092,26 @@ tearDown
 
 	super tearDown.
 	self connection ifNotNil: [self connection disconnect].
+	^self
+%
+category: 'Tests'
+method: PostgresTestCase
+testTableWithNulls
+
+	| ws aTupleClass objs |
+	aTupleClass := TestNullTupleObject .
+	self 	createTestNullTable.
+	objs := Array new.
+	objs add: (aTupleClass new exitCode: 3) ;
+		add: (aTupleClass new exitCode: nil).
+
+	self
+		assert: objs size identical: 2;
+		assert: objs first class == aTupleClass ;	
+		assert: (ws := self connection openInsertCursorOn: aTupleClass) class
+			equals: GsPostgresWriteStream ;
+		assert: (ws nextPutAll: objs) identical: ws;
+		assert: ws flush identical: ws.
 	^self
 %
 category: 'Tests'
