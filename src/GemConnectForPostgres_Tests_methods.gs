@@ -1920,3 +1920,32 @@ rdbPrimaryKeyMaps
 	yourself
 %
 ! ------------------- Instance methods for WidgetWithUnicodeOldColumnMap
+
+category: 'Accessing'
+method: TestNullTupleObject
+exitCode
+
+^ exitCode
+%
+
+category: 'Updating'
+method: TestNullTupleObject
+exitCode: aValue
+
+exitCode := aValue
+%
+category: 'other'
+classmethod: TestNullTupleObject
+rdbTableName
+
+^'testnull'
+%
+category: 'other'
+classmethod: TestNullTupleObject
+rdbColumnMapping
+
+^ Array new
+	add: (GsPostgresColumnMapEntry newForColumn: 'exitcode' instVar: 'exitCode' instVarClass: SmallInteger) ;
+	yourself
+%
+

@@ -67,3 +67,16 @@ WidgetWithUnicode subclass: 'WidgetWithUnicodeOldColumnMap'
   options: #()
 
 %
+set compile_env: 0
+! ------------------- Class definition for WidgetWithUnicodeOldColumnMap
+expectvalue /Class
+doit
+Object subclass: 'TestNullTupleObject'
+  instVarNames: #('exitCode')
+  classVars: #()
+  classInstVars: #()
+  poolDictionaries: #()
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
+  options: #()
+
+%
