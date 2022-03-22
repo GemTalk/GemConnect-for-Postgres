@@ -402,6 +402,29 @@ result := DoubleByteString new: sz .
 1 to: sz do:[:n| result codePointAt: n put: (anArray at: n) ].
 ^ result
 %
+category: 'Int Table'
+classmethod: PostgresTestCase
+intTableColumnNames
+
+^
+{
+'someint'
+}
+%
+category: 'Int Table'
+classmethod: PostgresTestCase
+intTableColumnTypes
+
+^
+{
+'BIGINT'
+}
+%
+category: 'Int Table'
+classmethod: PostgresTestCase
+intTableName
+	^'int_table'
+%
 category: 'Utilities'
 classmethod: PostgresTestCase
 quadByteStringFromCodePointArray: anArray
@@ -934,6 +957,20 @@ createWidgetTable
 			columnTypes: self class widgetTableColumnTypes;
 		yourself
 %
+category: 'Tests'
+method: PostgresTestCase
+debug_test_multiplePrepares
+
+	| tableName |
+	tableName := self class intTableName.
+	 self
+		dropTableNamed: tableName;
+		createTableNamed: tableName
+			columnNames: self class intTableColumnNames
+			columnTypes: self class intTableColumnTypes.
+	10 timesRepeat:[ self prepareAndExecuteRandomIntegerInserts: 1000].
+	^self 
+%
 category: 'Tables'
 method: PostgresTestCase
 deleteFromTable: table value: value
@@ -1020,6 +1057,21 @@ populateWidgetTable
 	inserts := self class widgetTableInsertStatements .
 	inserts do:[:e| self connection executeNoResults: e ].
 	^ self
+%
+category: 'Tests'
+method: PostgresTestCase
+prepareAndExecuteRandomIntegerInserts: count
+
+| sql stmtName rnd ints conn |
+stmtName := GsUuidV4 new asString .
+sql :=  'INSERT INTO int_table (someint) VALUES ($1)'.
+connection prepareStatement: sql withName: stmtName numberParameters: 1.
+rnd := Random new.
+ints := rnd integers: count between: 1 and: 16r100000000 .
+conn := self connection.
+ints do:[:e| conn executePreparedStatementWithName: stmtName parameters: { e asString } ].
+^ self
+
 %
 category: 'Transactions'
 method: PostgresTestCase
@@ -1352,6 +1404,20 @@ test_LargeInteger
 		gsCreateBlock: createBlock
 		gsUpdateBlock: updateBlock.
 	^self
+%
+category: 'Tests'
+method: PostgresTestCase
+test_multiplePrepares
+
+	| tableName |
+	tableName := self class intTableName.
+	 self
+		dropTableNamed: tableName;
+		createTableNamed: tableName
+			columnNames: self class intTableColumnNames
+			columnTypes: self class intTableColumnTypes.
+	100 timesRepeat:[ self prepareAndExecuteRandomIntegerInserts: 1000].
+	^self 
 %
 category: 'Tests'
 method: PostgresTestCase
