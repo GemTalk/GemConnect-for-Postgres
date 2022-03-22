@@ -68,11 +68,11 @@ WidgetWithUnicode subclass: 'WidgetWithUnicodeOldColumnMap'
 
 %
 set compile_env: 0
-! ------------------- Class definition for WidgetWithUnicodeOldColumnMap
+! ------------------- Class definition for TestNullTupleObject
 expectvalue /Class
 doit
 Object subclass: 'TestNullTupleObject'
-  instVarNames: #('exitCode')
+  instVarNames: #( exitCode)
   classVars: #()
   classInstVars: #()
   poolDictionaries: #()

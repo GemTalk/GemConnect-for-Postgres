@@ -538,7 +538,7 @@ category: 'Converting'
 classmethod: GsLibpq
 addUtf8Encoded: arrayOfStrings to: cByteArray
 
-"Special version of method 
+"Special version of method
 	CByteArray>>addUtf8Encoded: arrayOfStrings extraNullPointer: addExtraNull
 which adds a C NULL in cByteArray in place of the string NULL in arrayOfStrings.
 When a field is NULL, Postgres wants a C NULL, not the string NULL."
@@ -548,7 +548,7 @@ When a field is NULL, Postgres wants a C NULL, not the string NULL."
 	stringAddress := cByteArray memoryAddress + stringOffset.
 	ptrOffset := 0.
 	1 to: arySize
-		do: 
+		do:
 			[:n |
 			| aString |
 			aString := arrayOfStrings at: n.
@@ -556,7 +556,7 @@ When a field is NULL, Postgres wants a C NULL, not the string NULL."
 				ifTrue:  "No string to store, just store a C NULL for the char *"
 					[cByteArray int64At: ptrOffset put: 0.
 					ptrOffset := ptrOffset + 8]
-				ifFalse: 
+				ifFalse:
 					[| sz |
 					sz := cByteArray
 								encodeUTF8From: aString
@@ -572,9 +572,9 @@ When a field is NULL, Postgres wants a C NULL, not the string NULL."
 %
 category: 'Converting'
 classmethod: GsLibpq
-buildCByteArrayFromArrayEncodeUtf8: arrayOfParams 
+buildCByteArrayFromArrayEncodeUtf8: arrayOfParams
 
-"Special version of method 
+"Special version of method
 	CByteArray (C) >>fromArrayEncodeUtf8: arrayOfStrings extraNullPointer: addExtraNull
 which adds a C NULL in cByteArray in place of the string NULL in arrayOfStrings.
 When a field is NULL, Postgres wants a C NULL, not the string NULL."
@@ -589,7 +589,7 @@ category: 'Converting'
 classmethod: GsLibpq
 computeSizeForCByteArrayFrom: arrayOfStrings
 
-"Special version of method 
+"Special version of method
 	CByteArray (C) >>computeSizeForArrayOfUtf8Encoded: arrayOfStrings extraNullPointer: extraNullBoolean
 which adds a C NULL in cByteArray in place of the string NULL in arrayOfStrings.
 When a field is NULL, Postgres wants a C NULL, not the string NULL."
@@ -598,7 +598,7 @@ When a field is NULL, Postgres wants a C NULL, not the string NULL."
 	totalBytes := 0.
 	numStrings := 0.
 	1 to: (sz := arrayOfStrings size)
-		do: 
+		do:
 			[:n |
 			| str |
 			str := arrayOfStrings at: n.
@@ -3900,12 +3900,26 @@ timeFromPostgresTimeString: aString
 
 Note: Postgres times with timezones are not supported and the timezone is discarded."
 
-| rs  secs micro |
+| rs  secs micro haveMs second |
+haveMs := false .
 rs := ReadStreamPortable on: aString.
 secs :=(rs upTo: $: ) asInteger * 3600. "hours"
 secs := secs + ((rs upTo: $: ) asInteger * 60). "minutes"
 "Stop at $+ or $- which is the start of the time zone offset, if any. Otherwise read to the end to get the second"
-micro := (((rs upToAny: #( $+ $-))  asFloat) * 1000000) asInteger . "seconds with micro"
+second := (rs upToAnyOf: 					{$+.
+					$-.
+					$.}
+				do: [:char| haveMs := char == $.]) asInteger.
+secs := secs + second.
+	haveMs
+		ifTrue:
+			[micro := rs upToAny:
+							{$+.
+							$-}.
+			[micro size < 6] whileTrue: [micro add: $0].
+			micro := micro asInteger]
+		ifFalse: [micro := 0].
+
 ^Time fromMicroseconds: ((secs * 1000000) + micro)
 %
 ! ------------------- Instance methods for GsPostgresResult

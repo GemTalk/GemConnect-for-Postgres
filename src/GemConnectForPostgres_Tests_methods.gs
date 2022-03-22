@@ -584,7 +584,7 @@ testNullTableColumnNames
 
 ^
 {
-'exitcode' 
+'exitcode'
 }
 %
 category: 'TestNull Table'
@@ -593,7 +593,7 @@ testNullTableColumnTypes
 
 ^
 {
-'BIGINT' 
+'BIGINT'
 }
 %
 category: 'TestNull Table'
@@ -1107,7 +1107,7 @@ testTableWithNulls
 
 	self
 		assert: objs size identical: 2;
-		assert: objs first class == aTupleClass ;	
+		assert: objs first class == aTupleClass ;
 		assert: (ws := self connection openInsertCursorOn: aTupleClass) class
 			equals: GsPostgresWriteStream ;
 		assert: (ws nextPutAll: objs) identical: ws;
@@ -1920,26 +1920,10 @@ rdbPrimaryKeyMaps
 	yourself
 %
 ! ------------------- Instance methods for WidgetWithUnicodeOldColumnMap
-
-category: 'Accessing'
-method: TestNullTupleObject
-exitCode
-
-^ exitCode
-%
-
-category: 'Updating'
-method: TestNullTupleObject
-exitCode: aValue
-
-exitCode := aValue
-%
-category: 'other'
-classmethod: TestNullTupleObject
-rdbTableName
-
-^'testnull'
-%
+! ------------------- Remove existing behavior from TestNullTupleObject
+removeAllMethods TestNullTupleObject
+removeAllClassMethods TestNullTupleObject
+! ------------------- Class methods for TestNullTupleObject
 category: 'other'
 classmethod: TestNullTupleObject
 rdbColumnMapping
@@ -1948,4 +1932,22 @@ rdbColumnMapping
 	add: (GsPostgresColumnMapEntry newForColumn: 'exitcode' instVar: 'exitCode' instVarClass: SmallInteger) ;
 	yourself
 %
+category: 'other'
+classmethod: TestNullTupleObject
+rdbTableName
 
+^'testnull'
+%
+! ------------------- Instance methods for TestNullTupleObject
+category: 'Accessing'
+method: TestNullTupleObject
+exitCode
+
+^ exitCode
+%
+category: 'Updating'
+method: TestNullTupleObject
+exitCode: aValue
+
+exitCode := aValue
+%
