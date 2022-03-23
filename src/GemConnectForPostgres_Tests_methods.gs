@@ -221,6 +221,13 @@ method: WidgetWithStrings
 id: newValue
 	id := newValue
 %
+category: 'Updating'
+method: WidgetWithStrings
+incrementBalance	
+
+self balance: (self balance + 1).
+^ self
+%
 category: 'Initialize'
 method: WidgetWithStrings
 initialize
@@ -1382,6 +1389,125 @@ test_Float
 %
 category: 'Tests'
 method: PostgresTestCase
+test_insertUpdateDeleteOnReadOnly
+
+	| rs ws assoc aTupleClass objs objsFromPg saveObjs |
+	aTupleClass := WidgetWithReadOnlyStrings.
+
+	self createWidgetTable.
+	objs := aTupleClass newInstances: 100.
+	self
+		assert: objs size identical: 100;
+		assert: objs first class == aTupleClass.
+	saveObjs := objs collect:[:e| e copy ].
+	self assert: saveObjs size identical: objs size.
+	1 to: saveObjs size do:[:n| self assert: (objs at: n) equals: (saveObjs at: n) ].
+
+"Run the rollback tests"
+	self
+		assert: (ws := self connection openInsertCursorOn: aTupleClass) class
+			equals: GsPostgresWriteStream ;
+		_testWriteStreamRollbackForStream: ws withCollection: objs ;
+		assert: ws free identical: ws ;
+		deny: (self hasWriteStream: ws) .
+
+	self
+		assert: (ws := self connection openInsertCursorOn: aTupleClass) class
+			equals: GsPostgresWriteStream;
+		assert: ws isExternal;
+		assert: (self hasWriteStream: ws);
+		deny: ws hasUnflushedData ;
+		deny: self inTransaction ;
+		begin ;
+		assert: self inTransaction ;
+		assert: (ws nextPutAll: objs) identical: ws;
+		assert: ws hasUnflushedData ;
+		assert: self inTransaction ;
+		commit ;
+		deny: self inTransaction ;
+		deny: ws hasUnflushedData ;
+		assert: ws free identical: ws ;
+		deny: (self hasWriteStream: ws) .
+
+
+	[| a b |
+	self
+		assert: (rs := self connection
+							execute: (self class sqlForSelectAllFromTable: self class widgetTableName
+									orderBy: 'id')
+							tupleClass: aTupleClass) class
+			identical: GsPostgresReadStream;
+		assert: rs size identical: objs size;
+		assert: (self hasReadStream: rs) .
+	1 to: objsFromPg size
+		do: [:n | self assert: (a := ws next) equals: (b := objs at: n)]]
+			ensure: [rs ifNotNil: [rs free]].
+	self deny: (self hasReadStream: rs) .
+
+"Updates to a read only column should have no effect on the data in postgres.  Deletes and Inserts work as normal."
+	objs do: [:e | e isActive: false  ; incrementBalance]. "isActive is a read-only column for class WidgetWithReadOnlyStrings. balance is NOT read-only"
+	self
+		assert: (ws := self connection openUpdateCursorOn: aTupleClass) class
+			equals: GsPostgresWriteStream;
+		deny: self inTransaction ;
+		assert: (self hasWriteStream: ws);
+		deny: ws hasUnflushedData ;
+		assert: (ws nextPutAll: objs) identical: ws;
+		assert: ws hasUnflushedData ;
+		deny: self inTransaction ;
+		assert: ws flush identical: ws ;
+		deny: ws hasUnflushedData ;
+		deny: self inTransaction ;
+		assert: ws free identical: ws ;
+		deny: (self hasWriteStream: ws) .
+
+	[self
+		assert: (rs := self connection
+							execute: (self class sqlForSelectAllFromTable: self class widgetTableName
+									orderBy: 'id')
+							tupleClass: aTupleClass) class
+			identical: GsPostgresReadStream;
+		assert: (objsFromPg := rs contents) class identical: OrderedCollection;
+		assert: objsFromPg size identical: objs size;
+		assert: (self hasReadStream: rs) .
+	1 to: objsFromPg size
+		do: [:n | |a b | 	self deny: (a:= objsFromPg at: n) equals: (b :=objs at: n) ;
+						assert: a balance equals: b balance ; "balance should be updated"
+						assert: a isActive; "isActive should NOT be updated (read-only column)"
+						deny: b isActive.] ]
+			ensure: [rs ifNotNil: [rs free] ].
+	self deny: (self hasReadStream: rs) .
+	self
+		assert: (ws := self connection openDeleteCursorOn: aTupleClass) class
+			equals: GsPostgresWriteStream;
+		assert: (self hasWriteStream: ws);
+		deny: ws hasUnflushedData ;
+		deny: self inTransaction ;
+		begin ;
+		assert: self inTransaction ;
+		assert: (ws nextPutAll: objs) identical: ws;
+		assert: ws hasUnflushedData ;
+		assert: self inTransaction ;
+		commit ;
+		deny: self inTransaction ;
+		deny: ws hasUnflushedData ;
+		assert: ws free identical: ws ;
+		deny: (self hasWriteStream: ws) .
+
+	[self
+		assert: (rs := self connection
+							execute: (self class sqlForSelectAllFromTable: self class widgetTableName
+									orderBy: 'id')
+							tupleClass: aTupleClass) class
+			identical: GsPostgresReadStream;
+		assert: (self hasReadStream: rs) ;
+		assert: rs size identical: 0]
+			ensure: [rs ifNotNil: [rs free]].
+	self deny: (self hasReadStream: rs) .
+	^self
+%
+category: 'Tests'
+method: PostgresTestCase
 test_insertUpdateDeleteTuples
 
 	^self
@@ -1404,20 +1530,6 @@ test_LargeInteger
 		gsCreateBlock: createBlock
 		gsUpdateBlock: updateBlock.
 	^self
-%
-category: 'Tests'
-method: PostgresTestCase
-test_multiplePrepares
-
-	| tableName |
-	tableName := self class intTableName.
-	 self
-		dropTableNamed: tableName;
-		createTableNamed: tableName
-			columnNames: self class intTableColumnNames
-			columnTypes: self class intTableColumnTypes.
-	100 timesRepeat:[ self prepareAndExecuteRandomIntegerInserts: 1000].
-	^self 
 %
 category: 'Tests'
 method: PostgresTestCase
@@ -1922,6 +2034,38 @@ _test_TwoByteString: cls
 		gsUpdateBlock: updateBlock.
 	^self
 %
+! ------------------- Remove existing behavior from WidgetWithReadOnlyStrings
+removeAllMethods WidgetWithReadOnlyStrings
+removeAllClassMethods WidgetWithReadOnlyStrings
+! ------------------- Class methods for WidgetWithReadOnlyStrings
+category: 'Postgres Support'
+classmethod: WidgetWithReadOnlyStrings
+rdbColumnMapping
+
+^ Array new
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'id' instVar: 'id' instVarClass: SmallInteger) ;
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'last_update' instVar: 'lastUpdate' instVarClass: self classForDateAndTime ) ;
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'last_update_notz' instVar: 'lastUpdateNoTz' instVarClass: self classForDateAndTime ) ;
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'is_active' instVar: 'isActive' instVarClass: Boolean) ;
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'date' instVar: 'activeDate' instVarClass: self classForDate ) ;
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'time' instVar: 'activeTime' instVarClass: self classForTime ) ;
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'name_sb' instVar: 'nameSb' instVarClass: String ) ;
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'name_db' instVar: 'nameDb' instVarClass: DoubleByteString ) ;
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'name_qb' instVar: 'nameQb' instVarClass: QuadByteString );
+	add: (GsPostgresColumnMapEntry newForColumn: 'balance' instVar: 'balance' instVarClass: self classForScaledDecimal ) ;
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'encrypted_data' instVar: 'encryptedData' instVarClass: ByteArray );
+	yourself
+%
+category: 'Postgres Support'
+classmethod: WidgetWithReadOnlyStrings
+rdbPrimaryKeyMaps
+
+
+^ Array new
+	add: (GsPostgresColumnMapEntry newForReadOnlyColumn: 'id' instVar: 'id' ) ;
+	yourself
+%
+! ------------------- Instance methods for WidgetWithReadOnlyStrings
 ! ------------------- Remove existing behavior from WidgetWithStringsOldColumnMap
 removeAllMethods WidgetWithStringsOldColumnMap
 removeAllClassMethods WidgetWithStringsOldColumnMap

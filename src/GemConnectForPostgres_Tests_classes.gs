@@ -42,6 +42,19 @@ GsTestCase subclass: 'PostgresTestCase'
 
 %
 set compile_env: 0
+! ------------------- Class definition for WidgetWithReadOnlyStrings
+expectvalue /Class
+doit
+WidgetWithStrings subclass: 'WidgetWithReadOnlyStrings'
+  instVarNames: #()
+  classVars: #()
+  classInstVars: #()
+  poolDictionaries: #()
+  inDictionary: (UserGlobals at: #GcfpInstallDict)
+  options: #()
+
+%
+set compile_env: 0
 ! ------------------- Class definition for WidgetWithStringsOldColumnMap
 expectvalue /Class
 doit

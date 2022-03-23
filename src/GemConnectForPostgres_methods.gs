@@ -201,7 +201,7 @@ new
 %
 category: 'Instance Creation'
 classmethod: GsPostgresWriteStream
-newForCommand: sql connection: conn tupleClass: aClass columnMapping: colMap keyMap: keyMap bindInfo: aBindInfo
+newForCommand: sql connection: conn tupleClass: aClass columnMapping: colMap keyMap: keyMap
 
 ^ self new
 	initializeWithConnection: conn ;
@@ -2150,18 +2150,15 @@ method: GsPostgresConnection
 openDeleteCursorOn: tupleClass keyMapping: keyMap tableName: tableName
 	"Returns an instance of GsPostgresWriteStream which may be used to delete rows from table tableName using key map keyMap."
 
-	| keyNames sql bindInfo result |
+	| keyNames sql result |
 	keyNames := keyMap collect: [:x | x at: 1]. "columnName"
-	bindInfo := Array with: tableName.
-	bindInfo addAll: keyNames.
 	sql := self class generateBindSQLDeleteForTable: tableName keys: keyNames.
 	result := GsPostgresWriteStream
 				newForCommand: sql
 				connection: self
 				tupleClass: tupleClass
 				columnMapping: nil
-				keyMap: keyMap
-				bindInfo: bindInfo.
+				keyMap: keyMap.
 	result prepareStatement.
 	^result
 %
@@ -2193,9 +2190,8 @@ openInsertCursorOn: tupleClass columnMapping: columnMap tableName: tableName
 
 "Returns an instance of GsPostgresWriteStream which may be used to insert rows into table tableName."
 
-	| colNames sql bindInfo result |
+	| colNames sql  result |
 	colNames := columnMap collect: [:x | x at: 1 ]. "columnName"
-	bindInfo := (Array with: tableName) addAll: colNames.
 	sql := self class generateBindSQLInsertForTable: tableName
 				columns: colNames.
 	result := GsPostgresWriteStream
@@ -2203,8 +2199,7 @@ openInsertCursorOn: tupleClass columnMapping: columnMap tableName: tableName
 				connection: self
 				tupleClass: tupleClass
 				columnMapping: columnMap
-				keyMap:  nil
-				bindInfo: bindInfo.
+				keyMap:  nil.
 	result prepareStatement.
 	^ result
 %
@@ -2213,7 +2208,8 @@ method: GsPostgresConnection
 openUpdateCursorOn: tupleClass
 
 "Returns an instance of GsPostgresWriteStream which may be used to update rows in the table referenced by tupleClass.
-The tuple class must specify the key mapping (method #rdbPrimaryKeyMaps), column mapping (method #rdbColumnMapping) and table name (method #rdbTableName)."
+The tuple class must specify the key mapping (method #rdbPrimaryKeyMaps), column mapping (method #rdbColumnMapping) and table name (method #rdbTableName).
+Attempted updates to read-only columns are silently ignored."
 
    ^self openUpdateCursorOn: tupleClass
          columnMapping: (tupleClass rdbColumnMapping)
@@ -2223,7 +2219,8 @@ method: GsPostgresConnection
 openUpdateCursorOn: tupleClass columnMapping: columnMap
 
 "Returns an instance of GsPostgresWriteStream which may be used to update rows in the table referenced by tupleClass.
-The tuple class must specify the key mapping (method #rdbPrimaryKeyMaps) and table name (method #rdbTableName)."
+The tuple class must specify the key mapping (method #rdbPrimaryKeyMaps) and table name (method #rdbTableName).
+Attempted updates to read-only columns are silently ignored."
 
    | tableName |
    tableName := tupleClass rdbTableName.
@@ -2236,7 +2233,7 @@ method: GsPostgresConnection
 openUpdateCursorOn: tupleClass columnMapping: columnMap keyMapping: keyMap
 
 "Returns an instance of GsPostgresWriteStream which may be used to update rows in the table referenced by tupleClass.
-The tuple class must specify the table name (method #rdbTableName)."
+The tuple class must specify the table name (method #rdbTableName). Attempted updates to read-only columns are silently ignored."
 
    ^ self openUpdateCursorOn: tupleClass
 	columnMapping: columnMap
@@ -2246,12 +2243,15 @@ The tuple class must specify the table name (method #rdbTableName)."
 category: 'Command Execution'
 method: GsPostgresConnection
 openUpdateCursorOn: tupleClass columnMapping: columnMap keyMapping: keyMap tableName: tableName
-	"Returns an instance of GsPostgresWriteStream which may be used to update rows in table tableName."
+	"Returns an instance of GsPostgresWriteStream which may be used to update rows in table tableName.
+	Attempted updates to read-only columns are silently ignored."
 
-	| colNames sql bindInfo result keyNames |
-	colNames := columnMap collect: [:x | x at: 1]. "columnName"
-	keyNames := keyMap collect: [:x | x at: 1]. "columnName"
-	bindInfo := (Array with: tableName) addAll: colNames.
+	| colMap colNames sql result keyNames |
+	colMap := columnMap first class == Array
+				ifTrue: [columnMap]
+				ifFalse: [columnMap select: [:e | e readOnly not]].
+	colNames := colMap collect: [:x | x at: 1].
+	keyNames := keyMap collect: [:x | x at: 1].	"columnName"
 	sql := self class
 				generateBindSQLUpdateForTable: tableName
 				columns: colNames
@@ -2260,9 +2260,8 @@ openUpdateCursorOn: tupleClass columnMapping: columnMap keyMapping: keyMap table
 				newForCommand: sql
 				connection: self
 				tupleClass: tupleClass
-				columnMapping: columnMap
-				keyMap: keyMap
-				bindInfo: bindInfo.
+				columnMapping: colMap
+				keyMap: keyMap.
 	result prepareStatement.
 	^result
 %
@@ -3196,7 +3195,7 @@ category: 'Instance Creation'
 classmethod: GsPostgresColumnMapEntry
 new
 
-^self new: self instVarSize
+^(self new: self instVarSize) initialize
 %
 category: 'Instance Creation'
 classmethod: GsPostgresColumnMapEntry
@@ -3216,6 +3215,7 @@ classmethod: GsPostgresColumnMapEntry
 newForColumn: colName instVar: ivName getSelector: getter setSelector: setter instVarClass: aClass
 
 	^(self new)
+		initialize ;
 		columnName: colName asSymbol;
 		instVarName: ivName asSymbol;
 		getMethodSelector: getter asSymbol ;
@@ -3229,6 +3229,46 @@ newForColumn: colName instVar: ivName instVarClass: aClass
 
 	^self
 		newForColumn: colName
+		instVar: ivName
+		getSelector: (self defaultGetSelectorForInstVar: ivName)
+		setSelector: (self defaultSetSelectorForInstVar: ivName)
+		instVarClass: aClass
+%
+category: 'Instance Creation'
+classmethod: GsPostgresColumnMapEntry
+newForReadOnlyColumn: colName instVar: ivName
+
+"Creates a new instance that provides read-only behavior on the indicated column with default getter and setter method names and no inst var object kind"
+
+	^self
+		newForReadOnlyColumn: colName
+		instVar: ivName
+		getSelector: (self defaultGetSelectorForInstVar: ivName)
+		setSelector: (self defaultSetSelectorForInstVar: ivName)
+		instVarClass: nil
+%
+category: 'Instance Creation'
+classmethod: GsPostgresColumnMapEntry
+newForReadOnlyColumn: colName instVar: ivName getSelector: getter setSelector: setter instVarClass: aClass
+
+"Creates a new instance that provides read-only behavior on the indicated column. Attempted updates to read-only columns are silently ignored."
+	^(self new)
+		readOnly: true ;
+		columnName: colName asSymbol;
+		instVarName: ivName asSymbol;
+		getMethodSelector: getter asSymbol ;
+		setMethodSelector: setter asSymbol ;
+		instVarClass: aClass ;
+		yourself
+%
+category: 'Instance Creation'
+classmethod: GsPostgresColumnMapEntry
+newForReadOnlyColumn: colName instVar: ivName instVarClass: aClass
+
+"Creates a new instance that provides read-only behavior on the indicated column. Attempted updates to read-only columns are silently ignored."
+
+	^self
+		newForReadOnlyColumn: colName
 		instVar: ivName
 		getSelector: (self defaultGetSelectorForInstVar: ivName)
 		setSelector: (self defaultSetSelectorForInstVar: ivName)
@@ -3271,6 +3311,12 @@ getMethodSelector: newValue
 
 	self at: 3 put: newValue
 %
+category: 'Initialization'
+method: GsPostgresColumnMapEntry
+initialize
+
+^ self readOnly: false ;  yourself
+%
 category: 'Accessing'
 method: GsPostgresColumnMapEntry
 instVarClass
@@ -3292,6 +3338,16 @@ method: GsPostgresColumnMapEntry
 instVarName: newValue
 
 	self at: 2 put: newValue
+%
+category: 'Accessing'
+method: GsPostgresColumnMapEntry
+readOnly
+	^readOnly
+%
+category: 'Updating'
+method: GsPostgresColumnMapEntry
+readOnly: newValue
+	readOnly := newValue
 %
 category: 'Accessing'
 method: GsPostgresColumnMapEntry
