@@ -3414,7 +3414,7 @@ createInstanceOf: aClass fromFloatString: aString
 						ifTrue: [str add: char]
 						ifFalse: [rs position == (rs size - 2) ifTrue: [str add: char]]]]
 		ifFalse: [str := rs upToEnd]. "Not a currency, just create the class from what we have"
-	^aClass fromString: str
+	^aClass fromStringLocaleC: str
 %
 category: 'Converting'
 classmethod: GsPostgresResult
@@ -3490,10 +3490,10 @@ GsPostgresResult dateAndTimeFromTimestampTz: '2017-08-25 04:50:00-07'
 	day := (rs upTo: Character space) asInteger.
 	hour := (rs upTo: $:) asInteger.
 	minute := (rs upTo: $:) asInteger.
-	second := (rs upToAnyOf:
+	second := Float fromStringLocaleC: (rs upToAnyOf:
 					{$+.
 					$-}
-				do: [:char | negate := char == $-]) asFloat.
+				do: [:char | negate := char == $-]) .
 	rs atEnd
 		ifFalse:
 			["We have a time zone offset, either + or -"

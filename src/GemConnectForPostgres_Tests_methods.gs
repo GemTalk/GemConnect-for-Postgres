@@ -223,7 +223,7 @@ id: newValue
 %
 category: 'Updating'
 method: WidgetWithStrings
-incrementBalance	
+incrementBalance
 
 self balance: (self balance + 1).
 ^ self
@@ -976,7 +976,7 @@ debug_test_multiplePrepares
 			columnNames: self class intTableColumnNames
 			columnTypes: self class intTableColumnTypes.
 	10 timesRepeat:[ self prepareAndExecuteRandomIntegerInserts: 1000].
-	^self 
+	^self
 %
 category: 'Tables'
 method: PostgresTestCase
