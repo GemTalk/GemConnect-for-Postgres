@@ -98,7 +98,7 @@ category: 'Converting'
 classmethod: GsPostgresWriteStream
 floatToPostgresString: anObj escaped: isEscaped
 
-^ isEscaped ifTrue:[ anObj asString quoted ] ifFalse:[ anObj asString ]
+^ isEscaped ifTrue:[ anObj asString quoted ] ifFalse:[ anObj asStringLocaleC ]
 %
 category: 'Class Initialization'
 classmethod: GsPostgresWriteStream
