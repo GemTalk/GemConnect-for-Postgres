@@ -395,8 +395,10 @@ defaultParameters
 	^(GsPostgresConnectionParameters new)
 		host: 'localhost';
 		port: 5432;
-		dbname: 'demo';
+		dbname: 'test';
 		connect_timeout: 10;
+"		user: 'postgres' ;  add if needed "
+		password: '' ; "postgres 12 seems to need at least a blank string here"
 		yourself
 %
 category: 'Utilities'
